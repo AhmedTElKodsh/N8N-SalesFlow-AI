@@ -2,8 +2,9 @@
 title: 'Finish and test the N8N SalesFlow workflow'
 type: 'feature'
 created: '2026-07-15'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'b7b55804600998482d72d3154488e5eaa2495fcd'
+final_revision: '8fbdf8b70f85a7a8f2c3102eaa4bf180c527614c'
 review_loop_iteration: 5
 followup_review_recommended: false
 context:

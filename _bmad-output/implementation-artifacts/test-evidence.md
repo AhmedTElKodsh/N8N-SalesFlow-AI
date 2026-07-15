@@ -1,7 +1,7 @@
 # SalesFlow local test evidence
 
-Date: 2026-07-15  
-Runtime: n8n 2.30.4 and PostgreSQL 17.10, both digest-pinned in `compose.yaml`  
+Date: 2026-07-15
+Runtime: n8n 2.30.4 and PostgreSQL 17.10, both digest-pinned in `compose.yaml`
 Command: `powershell -ExecutionPolicy Bypass -File .\tests\run.ps1`
 
 ## Result
