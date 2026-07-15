@@ -6,7 +6,7 @@ Command: `powershell -ExecutionPolicy Bypass -File .\tests\run.ps1`
 
 ## Result
 
-The synthetic-local run completed with `PASS FULL PASS` and exit code 0 in 145.1 seconds. Independent post-run checks found no `.generated` directory and zero Docker volumes bearing the `n8n-salesflow-ai` Compose project label.
+The synthetic-local run was re-executed during the documentation refresh and completed with `PASS FULL PASS` and exit code 0 in 135.3 seconds. The harness also reported that plaintext credentials and container volumes were removed.
 
 Verified evidence includes:
 

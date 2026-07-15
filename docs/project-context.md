@@ -2,29 +2,36 @@
 
 ## Current truth
 
-This is a greenfield planning repository. There is no implementation or validated production baseline. The executive DOCX is preserved as a source proposal; it is not implementation authority.
+The repository now contains a complete, reproducible **synthetic-local implementation** of the seven-workflow SalesFlow design. The local suite passed on 2026-07-15 with n8n 2.30.4 and PostgreSQL 17.10 in digest-pinned containers.
 
-Canonical planning starts at [_bmad-output/planning-artifacts/README.md](../_bmad-output/planning-artifacts/README.md). The PRD remains `review-required` until its executive Open Questions are resolved.
+This is not a production approval. The adapters are deterministic local substitutes, and `release/release-manifest.json` keeps `livePromotionAllowed` set to `false`. Real Meta delivery, a selected production LLM, the CRM/Handoff contract, managed PostgreSQL controls, approved sales and knowledge content, legal/privacy approval, and a named production owner remain external gates.
+
+The original executive DOCX remains the source proposal. Because it was open in Word and locked during this update, [PRD_ N8N Sales AI Agent - Updated 2026-07-15.docx](../PRD_%20N8N%20Sales%20AI%20Agent%20-%20Updated%202026-07-15.docx) is the dated copy containing the implementation-status addendum. Product authority remains in the canonical planning pack at [_bmad-output/planning-artifacts/README.md](../_bmad-output/planning-artifacts/README.md); observed implementation documentation starts at [index.md](./index.md).
 
 ## Binding product boundary
 
-- MVP is a policy-bound WhatsApp sales assistant for opted-in inbound leads.
+- The MVP is a policy-bound WhatsApp sales assistant for opted-in inbound leads.
 - The LLM drafts and classifies; deterministic Sales Policy and humans own commercial authority.
 - `ready_for_handoff` is not `closed_won`.
-- A Customer can request a human at any stage. Human-Owned blocks all automation except one fixed, approved, language-matched, non-commercial transfer acknowledgement precommitted atomically with the Handoff; opt-out still suppresses it.
+- A customer can request a human at any stage. Human-Owned blocks automation except a fixed, approved, non-commercial transfer acknowledgement; opt-out still suppresses it.
 - Follow-Ups recheck consent, opt-out, ownership, timing, frequency, and template eligibility immediately before send.
-- PostgreSQL owns business state; n8n orchestrates; external side effects use unique persisted send intents.
+- PostgreSQL owns business state; n8n orchestrates; external side effects originate from unique persisted intents.
+
+## Implemented local baseline
+
+- Seven native-node n8n workflows cover ingress, orchestration, dispatch, provider status, UTC scheduling, Handoff dispatch, and operations.
+- PostgreSQL provides account-scoped state, immutable configuration versions, idempotency, ordering, authorization, leases/claims, retries, audit evidence, deletion minimization, and release activation.
+- Ten JSON contracts define the synthetic account, consent/templates, Handoff, model, Product Knowledge, qualification, Release Set, retention, retry, and Sales Policy inputs.
+- `tests/run.ps1` provisions disposable credentials, applies the migration twice, publishes configuration and workflows, executes S01-S26 and race checks, verifies canonical workflow identity and secrets hygiene, and cleans plaintext/volumes in `finally`.
 
 ## Delivery posture
 
-Start with native n8n capabilities, one runtime, managed PostgreSQL, one WhatsApp number, one offer family, one provider/model, and one Handoff channel. No custom dashboard, vector database, Redis, multi-model routing, or HA topology until evidence or an approved SLO requires it.
-
-Planning is technical-first. Resolve engineering choices from platform evidence and the architecture spine. Escalate only choices that change commercial authority, legal/privacy constraints, external-system ownership, or funded service levels.
+Keep the local baseline deliberately small: one n8n runtime, PostgreSQL, native nodes, one account fixture, one offer, one model fixture, and one Handoff queue. Do not add a custom dashboard, vector database, Redis, multi-model routing, or HA topology until evidence or an approved SLO requires it.
 
 ## Agent-assisted implementation
 
-Codex, Antigravity, and OpenCode may use suitable installed Skills, MCPs, and CLIs to build and verify the solution. They are development clients, not runtime dependencies. The repository is authoritative: exported n8n workflow JSON, PostgreSQL migrations, configuration contracts, tests, and release evidence must be reproducible without chat history. Production credentials stay in approved secret stores/n8n credentials and never in prompts, MCP arguments, workflow exports, or source control.
+Codex, Antigravity, and OpenCode are development clients, not runtime dependencies. Exported workflow JSON, PostgreSQL migrations, configuration contracts, tests, and release evidence must remain reproducible without chat history. Production credentials stay in approved secret stores/n8n credentials and never enter prompts, workflow exports, fixtures, or source control.
 
-## Required before implementation
+## Required before production
 
-Resolve the PRD Open Questions, approve rollout gates, complete epics/stories, and pass implementation readiness. Legal/privacy/security statements are planning gates, not legal conclusions.
+Resolve the PRD executive decisions, approve commercial and compliance boundaries, connect customer-owned Meta/LLM/Handoff assets, prove managed-infrastructure controls, run credentialed integration and pilot tests, and obtain production-owner approval. Local success is evidence for the repository baseline only.
