@@ -1,0 +1,1 @@
+{"accountRef":"test-account","kind":"retry","version":"retry-v1","maxAttempts":3,"backoffSeconds":2,"leaseSeconds":10,"turnClaimSeconds":10,"followupClaimSeconds":10}

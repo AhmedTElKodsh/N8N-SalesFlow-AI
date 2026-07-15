@@ -1,14 +1,11 @@
-# Local AI-client integrations generated from the canonical _bmad configuration.
+# Local AI-client integrations generated from canonical _bmad
 .agent/
 .agents/
 .claude/
 .github/agents/
 .kiro/
-
-# Machine-local WDS continuation state.
 progress/
 
-# Local runtime and test state.
 .env
 .env.*
 !.env.example
@@ -16,3 +13,4 @@ node_modules/
 .n8n/
 coverage/
 test-results/
+.generated/

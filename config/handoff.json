@@ -1,0 +1,1 @@
+{"accountRef":"test-account","kind":"handoff","version":"handoff-v1","queue":"synthetic-sales","deadlineSeconds":300,"maxAttempts":3,"backoffSeconds":2,"claimSeconds":10}

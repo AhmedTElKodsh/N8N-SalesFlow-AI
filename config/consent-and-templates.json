@@ -1,0 +1,1 @@
+{"accountRef":"test-account","kind":"consent_templates","version":"consent-v1","serviceWindowHours":24,"optOutSignals":["stop","unsubscribe"],"humanSignals":["human","agent"],"templates":[{"key":"followup-en","approved":true,"windowHours":24}]}

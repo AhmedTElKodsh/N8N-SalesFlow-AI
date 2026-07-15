@@ -1,0 +1,1 @@
+{"accountRef":"test-account","kind":"sales_policy","version":"policy-v1","campaignEnabled":true,"allowedOffers":["offer-1"],"allowedClaims":["service-count"],"minimumConfidence":0.8,"frequencyCap24h":3,"quietHoursUtc":{"start":0,"end":0}}
