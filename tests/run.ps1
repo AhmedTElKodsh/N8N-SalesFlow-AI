@@ -1,3 +1,7 @@
+param(
+  [switch]$KeepRunning,
+  [switch]$ResetLocal
+)
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 Set-Location $root
@@ -5,9 +9,18 @@ function Pass($m){Write-Host "PASS $m"}
 function Assert($c,$m){if(!$c){throw $m};Pass $m}
 function Native($m){Assert ($LASTEXITCODE-eq0) "$m exit"}
 $generated=Join-Path $root '.generated'
+$localEnvFile=Join-Path $root '.env'
 $envFile=Join-Path $generated 'runtime.env'
-$failure=$null;$cleanupFailure=$null
+$failure=$null;$cleanupFailure=$null;$managedEnvironment=$false;$lockAcquired=$false
+$mutex=[Threading.Mutex]::new($false,'Local\N8NSalesFlowAIHarness')
 try {
+  # ponytail: one lock per Windows login session; use a checkout-scoped mutex if parallel clones matter.
+  $lockAcquired=$mutex.WaitOne(0);if(-not$lockAcquired){throw 'Another SalesFlow harness is already running.'}
+  if($ResetLocal-and-not$KeepRunning){throw '-ResetLocal requires -KeepRunning.'}
+  docker info *> $null;Native 'Docker readiness'
+  $existingVolumes=@(docker volume ls --filter 'label=com.docker.compose.project=n8n-salesflow-ai' -q);Native 'local volume inventory'
+  $localEnvExists=Test-Path $localEnvFile
+  if(($localEnvExists-or$existingVolumes)-and-not$ResetLocal){$recovery=if($localEnvExists-and$existingVolumes){'Resume with docker compose --env-file .env up -d'}else{'The local environment is incomplete'};throw "$recovery. Replace it explicitly with -KeepRunning -ResetLocal."}
   $manifest=Get-Content release/release-manifest.json -Raw|ConvertFrom-Json
   $workflows=@(Get-ChildItem workflows -Filter *.json|Sort-Object Name);Assert ($workflows.Count-eq7) 'seven workflows'
   $configs=@(Get-ChildItem config -Filter *.json|Sort-Object Name);Assert ((Compare-Object @($configs.Name) @($manifest.configFiles)).Count-eq0) 'exact config file set'
@@ -20,6 +33,15 @@ try {
   foreach($p in $manifest.inputHashes.psobject.Properties){Assert ((Get-FileHash $p.Name -Algorithm SHA256).Hash.ToLower()-eq$p.Value) "manifest input $($p.Name)"}
   $ids=(Get-Content tests/pilot-scenarios.json -Raw|ConvertFrom-Json).scenarios;$sql=Get-Content tests/runtime.sql -Raw
   foreach($id in $ids){Assert ($sql-match"INSERT INTO evidence[^;]*\('$id'\)") "$id asserted before marker"}
+  if($ResetLocal){
+    $oldEnvFile=if($localEnvExists){$localEnvFile}else{Join-Path $root '.env.example'}
+    $ErrorActionPreference='Continue'
+    docker compose --env-file $oldEnvFile down -v --remove-orphans *> $null;Native 'existing local reset'
+    $remaining=@(docker volume ls --filter 'label=com.docker.compose.project=n8n-salesflow-ai' -q);Native 'reset volume inventory';Assert (-not$remaining) 'existing local volumes removed'
+    Remove-Item $localEnvFile -Force -ErrorAction SilentlyContinue
+    $ErrorActionPreference='Stop'
+  }
+  $managedEnvironment=$true
   Remove-Item $generated -Recurse -Force -ErrorAction SilentlyContinue;New-Item $generated -ItemType Directory|Out-Null;New-Item (Join-Path $generated exported) -ItemType Directory|Out-Null
   $scheduler=[guid]::NewGuid().ToString('N')+[guid]::NewGuid().ToString('N');$encryption=[guid]::NewGuid().ToString('N')+[guid]::NewGuid().ToString('N');$super=[guid]::NewGuid().ToString('N');$owner=[guid]::NewGuid().ToString('N');$n8ndb=[guid]::NewGuid().ToString('N');$workflowdb=[guid]::NewGuid().ToString('N')
   $envText=(Get-Content .env.example -Raw)-replace'(?m)^SCHEDULER_TOKEN=.*$',"SCHEDULER_TOKEN=$scheduler"-replace'(?m)^N8N_ENCRYPTION_KEY=.*$',"N8N_ENCRYPTION_KEY=$encryption"-replace'(?m)^POSTGRES_SUPERUSER_PASSWORD=.*$',"POSTGRES_SUPERUSER_PASSWORD=$super"-replace'(?m)^MIGRATION_PASSWORD=.*$',"MIGRATION_PASSWORD=$owner"-replace'(?m)^N8N_DB_PASSWORD=.*$',"N8N_DB_PASSWORD=$n8ndb"-replace'(?m)^WORKFLOW_DB_PASSWORD=.*$',"WORKFLOW_DB_PASSWORD=$workflowdb"
@@ -94,15 +116,32 @@ INSERT INTO followups(account_ref,contact_id,conversation_id,due_at,expected_ver
   Pass 'FULL PASS'
 }catch{$failure=$_}
 finally{
-  if(Test-Path $envFile){docker compose --env-file $envFile down -v --remove-orphans *> $null;if($LASTEXITCODE-ne0){$cleanupFailure='compose cleanup exit'}}
-  Remove-Item $generated -Recurse -Force -ErrorAction SilentlyContinue
-  if(Test-Path $generated){$cleanupFailure='plaintext generated directory remains'}
-  $volumes=@(docker volume ls --filter 'label=com.docker.compose.project=n8n-salesflow-ai' -q)
-  if($LASTEXITCODE-ne0){$cleanupFailure='volume inventory exit'}elseif($volumes){docker volume rm $volumes *> $null;if($LASTEXITCODE-ne0){$cleanupFailure='project volume removal exit'}}
-  $remaining=@(docker volume ls --filter 'label=com.docker.compose.project=n8n-salesflow-ai' -q)
-  if($LASTEXITCODE-ne0-or$remaining){$cleanupFailure='project volumes remain'}
+  $preserveLocal=$KeepRunning-and-not$failure
+  if($managedEnvironment){
+    if($preserveLocal){
+      try{Copy-Item $envFile $localEnvFile -Force}catch{$cleanupFailure='local .env persistence failed'}
+      if(-not$cleanupFailure){
+        Get-ChildItem $generated -Force|Remove-Item -Recurse -Force
+        if(@(Get-ChildItem $generated -Force).Count){$cleanupFailure='plaintext generated files remain'}
+        $running=@(docker compose --env-file $localEnvFile ps --status running -q)
+        $postgresId=docker compose --env-file $localEnvFile ps -q postgres
+        $postgresHealth=if($LASTEXITCODE-eq0-and$postgresId){docker inspect --format '{{.State.Health.Status}}' $postgresId}else{''}
+        try{$n8nHealth=(Invoke-RestMethod http://127.0.0.1:5678/healthz -TimeoutSec 5).status}catch{$n8nHealth=''}
+        if($LASTEXITCODE-ne0-or$running.Count-ne2-or$postgresHealth-ne'healthy'-or$n8nHealth-ne'ok'){$cleanupFailure='local stack not healthy'}
+      }
+    }else{
+      if(Test-Path $envFile){docker compose --env-file $envFile down -v --remove-orphans *> $null;if($LASTEXITCODE-ne0){$cleanupFailure='compose cleanup failed; recovery credentials retained in .generated/runtime.env'}}
+      if(-not$cleanupFailure){
+        Remove-Item $generated -Recurse -Force -ErrorAction SilentlyContinue
+        if(Test-Path $generated){$cleanupFailure='plaintext generated directory remains'}
+        $remaining=@(docker volume ls --filter 'label=com.docker.compose.project=n8n-salesflow-ai' -q)
+        if($LASTEXITCODE-ne0-or$remaining){$cleanupFailure='project volumes remain'}
+      }
+    }
+  }
+  if($lockAcquired){$mutex.ReleaseMutex()};$mutex.Dispose()
 }
 if($cleanupFailure){throw $cleanupFailure}
-Pass 'plaintext credentials removed'
-Pass 'container volumes removed'
 if($failure){throw $failure}
+Pass 'plaintext generated credentials removed'
+if($KeepRunning){Pass 'local stack running at http://127.0.0.1:5678';Pass 'ignored local .env retained'}else{Pass 'container volumes removed'}

@@ -24,6 +24,18 @@ powershell -ExecutionPolicy Bypass -File .\tests\run.ps1
 
 The command starts a clean digest-pinned PostgreSQL/n8n environment, applies the migration twice, creates random local credentials, publishes both account configurations, executes S01-S26 and concurrency checks, imports and publishes all workflows, calls every live endpoint, re-exports and hashes the imported workflows, scans exports for credentials, and removes generated plaintext and Docker volumes in `finally`.
 
+## Keep a free local development stack
+
+Run the same verified path and retain the healthy containers, volumes, and ignored `.env`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tests\run.ps1 -KeepRunning
+```
+
+Open <http://127.0.0.1:5678>. Resume a stopped stack with `docker compose --env-file .env up -d`. The command refuses to overwrite an existing local environment; use `-KeepRunning -ResetLocal` only when you intend to delete and rebuild its data.
+
+The retained `.env` contains local database and encryption secrets in plaintext. It is Git-ignored, but use this mode only on a trusted development account and never copy that file to chat, source control, or a shared machine.
+
 ## Manual lifecycle
 
 The automated harness is the canonical path because it generates disposable secrets, provisions the least-privilege roles, and imports/publishes the workflows. For a manual clean start, fill every blank secret in an ignored `.env`, start PostgreSQL alone, apply the owner migration, and only then start n8n:
