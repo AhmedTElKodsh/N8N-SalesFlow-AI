@@ -5,3 +5,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-local-self-hosted-n8n.md`
   summary: Define immutable release-version rotation rules in addition to the existing content hash identity.
   evidence: The activation content hash is authoritative and verified, but the existing `release-v1` semantic label can cover refreshed synthetic-local harness content.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-consolidate-production-worktree.md`
+  summary: Repair visible Unicode substitutions and stale Sprint terminology in the production-delivery roadmap DOCX while preserving its format.
+  evidence: The copied DOCX is structurally valid but contains visible question-mark substitutions and one retained Sprint 1 reference in a stage-based roadmap.

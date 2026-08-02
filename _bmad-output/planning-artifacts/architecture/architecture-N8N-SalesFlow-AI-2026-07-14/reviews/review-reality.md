@@ -3,13 +3,13 @@
 **Artifact reviewed:** `ARCHITECTURE-SPINE.md`  
 **Review date:** 2026-07-14  
 **Lens:** current vendor capability, version reality, licensing, operational enforceability, and unsafe assumptions  
-**Verdict:** **CHANGES REQUIRED — the architecture pattern is credible, but the spine is not implementation-ready until the gates below are resolved.**
+**Original verdict (2026-07-14):** **CHANGES REQUIRED — the architecture pattern was credible, but the spine was not implementation-ready until the gates below were resolved.** See **Resolution after review** and **Final verdict** for current status.
 
 ## Executive finding
 
 The pipes-and-filters design, PostgreSQL authority, deterministic policy gate, durable outbox, and single-runtime pilot boundary are defensible. PostgreSQL 17.10 is a real, current, supported release. n8n supports the Postgres, Schedule Trigger, queue/worker, webhook-processor, and multi-main capabilities named in the spine.
 
-The build is nevertheless blocked by four reality gaps:
+At the time of this review, the build was blocked by four reality gaps:
 
 1. AD-9 treats the 24-hour window and template state as the WhatsApp eligibility gate but does not make recorded opt-in authority and atomic opt-out suppression part of that same gate.
 2. n8n 2.25.7 exists, but it is no longer the current npm release; 2.30.4 is current at review time. The older pin has no recorded security/regression rationale, and the actual image digest is deferred.
@@ -180,4 +180,4 @@ The spine was revised after this review: AD-14 now owns consent/opt-out final au
 
 ## Final verdict
 
-**CHANGES REQUIRED.** The architecture is directionally strong and avoids the original executive PRD's unsafe “LLM closes the deal” design. PostgreSQL 17.10 and the named n8n capabilities are real. Do not begin production workflow implementation from this spine, however, until R1 through R5 are converted into explicit invariants and verified build gates. R6 through R9 may be resolved during the first implementation stories but must close before pilot launch.
+**CONDITIONALLY CONVERGED.** R1 through R5 have been converted into AD-14 and AD-17 through AD-23 or retained as explicit external blockers. The spine is adequate authority for independently approved, bounded implementation stories, but this is not production readiness: every applicable build gate still requires current implementation evidence, and Meta, managed PostgreSQL, LLM, Handoff, compliance, and ownership gates remain blocked until their real contracts and environments are approved.

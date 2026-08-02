@@ -1,8 +1,8 @@
 # Architecture Divergence Review — N8N SalesFlow AI
 
-## Verdict
+## Original verdict (superseded by resolution)
 
-**Not convergent enough for independent downstream implementation.** The deterministic lint passes, but two implementations can obey AD-1 through AD-18 and still disagree at shared database contracts, inbound ordering, send authorization concurrency, knowledge revocation, Handoff completion, and external retry exhaustion. The first five differences can change customer-visible or safety behavior.
+**Not convergent enough for independent downstream implementation at the time of review.** The deterministic lint passed, but two implementations could obey AD-1 through AD-18 and still disagree at shared database contracts, inbound ordering, send authorization concurrency, knowledge revocation, Handoff completion, and external retry exhaustion. See **Resolution after review** and **Gate result** for current status.
 
 ## Constructed downstream units
 
@@ -76,5 +76,6 @@ AD-19 closes shared schema/mutation ownership; AD-20 defines canonical inbound o
 ## Gate result
 
 - Deterministic lint: pass, zero findings.
-- Semantic divergence: 1 critical, 4 high, 1 medium.
-- Handoff recommendation: block independent story implementation until Findings 1–5 are closed or the affected stories are explicitly marked blocked.
+- Findings 1–4 and 6: closed by AD-19 through AD-23.
+- Finding 5: intentionally blocked until the Handoff adapter and operating SLA become an approved contract.
+- Handoff recommendation: bounded stories that do not depend on Finding 5 may proceed only after story-level approval; Handoff delivery/acknowledgement remains blocked.

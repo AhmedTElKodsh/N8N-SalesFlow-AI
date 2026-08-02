@@ -1,5 +1,7 @@
 # N8N SalesFlow AI — Planning Index
 
+Agent navigation: [planning artifacts index](index.md)
+
 Status: **Synthetic-local implementation complete and verified; executive review and production promotion remain open**
 Source reviewed: `PRD_ N8N Sales AI Agent.docx`  
 Review date: 2026-07-14
@@ -15,9 +17,12 @@ Implementation evidence date: 2026-07-15
 | 4 | [PRD addendum](prds/prd-N8N-SalesFlow-AI-2026-07-14/addendum.md) | Source reconciliation and technical options | Supporting |
 | 5 | [Architecture spine](architecture/architecture-N8N-SalesFlow-AI-2026-07-14/ARCHITECTURE-SPINE.md) | Build invariants and structural seed | Review required |
 | 6 | [Epics and stories](epics.md) | Delivery decomposition | Complete |
-| 7 | [Implementation specification](../implementation-artifacts/spec-finish-and-test-n8n-workflow.md) | Synthetic-local delivery contract | Done |
-| 8 | [Local test evidence](../implementation-artifacts/test-evidence.md) | Runtime, concurrency, identity, secret, and cleanup proof | PASS (local only) |
-| 9 | `implementation-readiness-report-2026-07-14.md` | Cross-artifact readiness verdict | Not generated; not retroactively claimed |
+| 7 | [Production delivery change proposal](production-delivery/sprint-change-proposal-2026-08-01.md) | Roadmap/spec correction and implementation handoff | Approval required |
+| 8 | [Production delivery roadmap](production-delivery/production-delivery-roadmap.docx) | Eight-stage gated production delivery roadmap; not a committed sprint plan | Supporting; no stage committed |
+| 9 | [Synthetic-local implementation specification](../implementation-artifacts/spec-finish-and-test-n8n-workflow.md) | Delivered local contract | Done |
+| 10 | [Story 1.1 Meta ingress specification](../implementation-artifacts/epic-1/spec-1-1-meta-staging-ingress.md) | First bounded production-integration candidate | Review required; no implementation approval |
+| 11 | [Local test evidence](../implementation-artifacts/test-evidence.md) | Runtime, concurrency, identity, secret, and cleanup proof | Historical PASS (local only) |
+| 12 | `implementation-readiness-report-2026-07-14.md` | Cross-artifact readiness verdict | Not generated; not retroactively claimed |
 
 The executive DOCX remains an input rather than canonical implementation authority. `PRD_ N8N Sales AI Agent - Updated 2026-07-15.docx` is the dated copy that records the delivered synthetic-local baseline, corrected product authority boundary, local evidence, and unresolved production decisions. This pack is technical-first: engineering defaults are decided here; executive input is requested only when it changes commercial authority, compliance, cost/SLO, or an external-system contract.
 
@@ -26,10 +31,10 @@ The executive DOCX remains an input rather than canonical implementation authori
 - Seven canonical n8n workflows, the PostgreSQL command/state model, ten configuration contracts, release manifest, and one-command test harness are present.
 - The 2026-07-15 run completed with `PASS FULL PASS`, including S01-S26, race checks, live n8n endpoint paths, import/export identity, secret scans, and cleanup.
 - Evidence is synthetic-local only. `release/release-manifest.json` keeps `livePromotionAllowed` set to `false`.
-- Review-required/draft labels on the Product Brief, PRD, and Architecture Spine have not been silently converted into executive approval.
+- The Product Brief, PRD, and Architecture Spine are technically reconciled but remain subject to the recorded product/executive approvals; no label is treated as production approval.
 
 ## Deliberately not created
 
 - UX specification: the MVP uses WhatsApp plus existing internal tools; no custom user interface is approved.
-- Separate roadmap, risk register, or decision log: epics, PRD gates, and BMAD memlogs already cover them.
+- Separate risk register or decision log: epics, PRD gates, the gated delivery roadmap, and BMAD memlogs already cover them.
 - A retroactive implementation-readiness report: implementation evidence exists, but a missing planning gate is not fabricated after the fact.
