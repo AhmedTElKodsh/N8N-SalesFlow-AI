@@ -2,9 +2,10 @@
 title: 'Add Meta-compatible staging ingress foundation'
 type: 'feature'
 created: '2026-07-30'
-updated: '2026-08-01'
-status: 'blocked'
-review_loop_iteration: 1
+updated: '2026-08-02'
+status: 'done'
+baseline_commit: 'e648be25b67bc7013bd261df246951ed6cb6f2f6'
+review_loop_iteration: 2
 context:
   - '{project-root}/docs/project-context.md'
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1/epic-1-context.md'
@@ -14,104 +15,129 @@ context:
 
 ## Intent
 
-**Problem:** Workflow 01 accepts only the synthetic `x-salesflow-token` contract. A Meta test asset cannot yet verify its callback, authenticate signed POST deliveries over the original bytes, or persist supported WhatsApp inbound messages under Story 1.1's rejection-audit and response requirements.
+**Problem:** Workflow 01 accepts only the synthetic token contract. It cannot safely verify a Meta callback or signed raw-body delivery, and its current ingest path can trigger sales automation that is forbidden for this staging slice.
 
-**Approach:** Preserve the synthetic route and add separate Meta-compatible GET and POST paths. The POST path captures the raw body, enforces the text-only pilot size boundary, computes the HMAC using an encrypted n8n credential, performs strict header parsing and constant-time digest comparison, validates the whole envelope, records a PII-minimized accepted or rejected result in PostgreSQL, and stops without downstream sales automation.
-
-**Proof label:** Generated local credentials prove the protocol and credential-handling contract only. A real Meta test-asset smoke remains an external, approval-gated activity and is not part of local acceptance.
+**Approach:** Preserve the synthetic route and add isolated Meta GET/POST paths. Validate the entire signed envelope before one atomic PostgreSQL call, persist accepted text messages or one minimized rejection record, return one explicit response, and stop without orchestration.
 
 ## Boundaries & Constraints
 
-**Always:** Work only in the `main` direct-implementation worktree; leave `codex/guided-learning` unchanged. Return the Meta challenge only for exact `hub.mode=subscribe` and constant-time verify-token match. For POST, require exactly one `X-Hub-Signature-256` header whose value matches `sha256=<64 hex>`. Compute the expected SHA-256 HMAC over the original request bytes using a secret-backed Crypto credential, decode both digests to fixed 32-byte values, and compare them with Node's standard-library `crypto.timingSafeEqual`. Validate the complete envelope and every entry/change identity before accepted-message persistence. PostgreSQL retains final deduplication and Conversation ordering. Keep secrets in ignored input or n8n credentials and keep `livePromotionAllowed=false`.
+**Always:** Require exact subscribe/token verification for GET. For POST, enforce one `X-Hub-Signature-256: sha256=<64 hex>` value, HMAC-SHA256 over original bytes, fixed-length constant-time comparison, declared and measured raw size at most 262,144 bytes, and whole-envelope object/WABA/phone/schema validation before persistence. PostgreSQL owns batch atomicity, deduplication, sequencing, and audit after the request reaches Workflow 01. Pinned n8n `2.30.4` rejects syntactically invalid `application/json` with `422` before workflow execution, so that platform rejection has no workflow audit; schema-invalid JSON still receives `400` and a minimized audit. Workflow rejections store only account, allowlisted reason, timestamp, and `sha256("salesflow:meta-rejection:v1:" + reason + ":" + expectedHmacHex)` as an opaque deterministic correlation value; never store the raw-body hash, supplied signature, or expected HMAC. Generated credentials prove local protocol behavior only. Keep `livePromotionAllowed=false`.
 
-**Request limit:** The text-only pilot accepts at most 262,144 raw bytes (256 KiB). Reject a declared larger body before business parsing and verify the measured raw byte length before JSON parsing. Configure n8n's outer payload ceiling no higher than required by the deployment. `ponytail:` this conservative text-only ceiling may increase only after captured Meta test-asset evidence and a security review show a larger valid envelope is required.
+**Ask First:** Real Meta/customer credentials, public HTTPS or subscription changes, downstream Meta automation, policy changes, or live promotion.
 
-**Rejection audit:** Invalid signature, wrong identity, malformed schema/JSON, oversized input, and unsupported event type create exactly one PII-minimized rejection Audit Event through a dedicated parameterized PostgreSQL command. Store only configured account reference, reason code, correlation ID, and timestamp; do not store the raw envelope, signature, phone number, message body, Contact, Conversation, or Inbound Message. Duplicate delivery may reuse the existing accepted/rejected result.
-
-**Response contract:** Produce exactly one HTTP response per envelope. Return `200` for accepted, duplicate, or valid-signed unsupported deliveries after durable evidence is committed; `400` for malformed or oversized input after rejection evidence commits; `403` for signature or configured-identity failure after rejection evidence commits; `409` for a conflicting replay after reconciliation evidence commits; and `5xx` when the required accepted/rejection database write fails so the provider can retry. Never return `200` for a database failure.
-
-**Ask First:** Use real Meta/customer credentials, change a Meta app or webhook subscription, expose a public HTTPS endpoint, enable downstream automation for Meta events, change commercial/consent/Human-Owned policy, or enable live promotion.
-
-**Never:** Modify the guided-learning branch, hard-code credentials, persist a rejected raw envelope, partially accept a mixed-identity envelope, replace PostgreSQL idempotency with workflow checks, add a service or dependency, invoke the orchestrator/LLM/outbound/Follow-Up/Handoff path from Meta staging, or claim production readiness from local/generated-secret evidence.
-
-## Node Decision
-
-Use the generic Webhook node with raw-body capture, not the native WhatsApp Trigger, because rejected deliveries must reach the workflow's explicit rejection-audit and response contract. Use the existing Crypto node with an encrypted credential to compute the HMAC. Add one minimal Code node solely to parse the signature into a fixed 32-byte digest and call `crypto.timingSafeEqual`; allow only the Node standard-library `crypto` module. This exception must be added to the release node inventory, task-runner/node hardening review, and `n8n audit` evidence. No HTTP, command, file, community, custom, or new dependency is introduced.
+**Never:** Modify guided learning; store rejected raw bodies, signatures, phone numbers, or message text; partially persist mixed/failed batches; hard-code secrets; add a service/dependency; invoke the orchestrator, LLM, outbound, Follow-Up, or Handoff path from Meta staging.
 
 ## I/O & Edge-Case Matrix
 
-| Scenario | Input / State | Durable result | HTTP result |
+| Scenario | Input / State | Expected Output / Behavior | Error Handling |
 | --- | --- | --- | --- |
-| Verify callback | Exact subscribe mode, token, and challenge | None | `200`, exact challenge |
-| Verify mismatch | Missing/mismatched mode or token | None; no token disclosure | `403` |
-| Valid inbound | Correct raw-body HMAC, configured identities, supported text messages | Each unique provider ID persisted once with canonical order; one acceptance audit | `200` |
-| Duplicate/concurrent retry | Same provider message ID and content | Existing logical record/result reused | `200` |
-| Conflicting replay | Same provider ID with different content | No mutation of accepted message; PII-minimized rejection/reconciliation evidence | `409` |
-| Missing/duplicate/malformed signature | Zero, multiple, or non-`sha256=<64 hex>` values | One PII-minimized rejection; no business record | `403` |
-| Signature mismatch | Valid grammar, wrong digest | One PII-minimized rejection; no business record | `403` |
-| Wrong or mixed identity | Wrong object/account/phone ID anywhere in envelope | Whole envelope rejected; no partial accepted-message persistence | `403` |
-| Malformed payload | Invalid JSON/schema or missing required identifiers | One PII-minimized rejection; no business record | `400` |
-| Oversized payload | Declared or measured raw body above 256 KiB | One PII-minimized rejection when the workflow can safely record it | `400` |
-| Unsupported event | Valid signed and identity-bound non-message/non-text event | One PII-minimized rejection/ignored audit; no business record | `200` |
-| Database failure | Accepted or rejection evidence cannot commit | No downstream action and no false success | `5xx` |
+| GET verification | Exact mode/token/challenge | Exact challenge | Mismatch `403` |
+| Accepted POST | Valid signature/identity and text messages | Atomic ordered persistence, no downstream work | New/duplicate `200`; conflict `409` |
+| Authentication | Missing, duplicate, malformed, or mismatched signature | One minimized rejection, no business mutation | `403` |
+| Envelope validation | Wrong/mixed identity, syntactically invalid JSON, schema-invalid JSON, or >256 KiB | Whole envelope rejected | `403` identity; pinned n8n `422` for invalid JSON; otherwise `400` |
+| Unsupported event | Valid signed and identity-bound non-text event | Minimized ignored/rejection audit only | `200` |
+| Database failure | Required ingest/audit write fails | No false success or downstream action | `5xx` for provider retry |
 
 </frozen-after-approval>
 
 ## Code Map
 
-- `workflows/01-whatsapp-ingress.json` — preserve the synthetic path; add isolated Meta GET/POST paths and one terminal response path per request.
-- `database/001-initial.sql` — reuse `salesflow.ingest`; add the smallest dedicated runtime-authorized rejection-audit command rather than granting direct table writes.
-- `.env.example` and `compose.yaml` — add blank Meta identity/verify inputs and the minimum Code-node standard-library allowance; no source secret.
-- `tests/run.ps1` — extend the canonical disposable-credential/live-endpoint harness; do not create a second test runner.
-- `release/release-manifest.json` and `config/release-set.json` — update hashes and exact node inventory while retaining `livePromotionAllowed=false`.
-- `docs/deployment-guide.md` — document local protocol proof separately from the approval-gated Meta test-asset smoke and remaining external gates.
+- `workflows/01-whatsapp-ingress.json` — retain synthetic topology; add raw Meta GET/POST, a raw-byte bridge, Crypto, validation Code, database, and explicit response paths.
+- `database/001-initial.sql` — add atomic Meta-envelope ingest and idempotent minimized rejection commands; keep synthetic `ingest(text,jsonb)` behavior.
+- `.env.example`, `compose.yaml` — pass blank Meta identity/runtime inputs and allow only Node stdlib `crypto`; App Secret remains an encrypted n8n credential.
+- `tests/run.ps1` — extend the existing disposable live-endpoint harness with the complete matrix and regression assertions.
+- `release/release-manifest.json`, `config/release-set.json` — refresh hashes/node inventory while preserving the promotion prohibition.
+- `docs/deployment-guide.md` — separate local protocol proof from approval-gated Meta test-asset proof.
 
 ## Tasks & Acceptance
 
-**Execution (only after explicit approval):**
+**Execution:**
 
-- [ ] Add the dedicated PII-minimized rejection-audit database command and grant only its execution to the runtime role.
-- [ ] Add Meta GET verification and raw-body POST validation/normalization paths to Workflow 01; keep the synthetic route unchanged and terminate Meta processing after ingest/audit.
-- [ ] Add generated local Meta/HMAC inputs and the minimum `crypto` Code-node allowance without committing secrets.
-- [ ] Extend `tests/run.ps1` with the matrix below while retaining S01–S26 and all existing race/identity/secret checks.
-- [ ] Regenerate reviewed workflow/config hashes and node inventory with `livePromotionAllowed=false`.
-- [ ] Update deployment documentation with proof labels and unresolved external gates.
+- [x] Implement `record_ingress_rejection(text,text,text)` and atomic staging-ingest commands, including batch rollback and no signal/Handoff side effects.
+- [x] Add isolated Meta GET/POST workflow paths using raw body, encrypted HMAC credential, strict/timing-safe validation, and one response per envelope.
+- [x] Add generated local inputs and the minimum `crypto` Code-node allowance without source secrets.
+- [x] Extend `tests/run.ps1`; retain S01–S26, concurrency, identity, export, and secret checks.
+- [x] Refresh release evidence and deployment guidance.
 
-**Local acceptance:**
+**Acceptance Criteria:**
 
-- Given generated test credentials, the canonical harness passes existing S01–S26 plus GET verification, valid signed acceptance, batch/replay/concurrency, strict signature grammar, duplicate header, mismatch, wrong/mixed identity, malformed JSON/schema, exact/over-limit size, unsupported event, and database-failure cases.
-- Each rejection case asserts no Contact, Conversation, Inbound Message, outbound intent, Handoff, Follow-Up, or raw envelope was created; exactly one PII-minimized Audit Event is queryable when its database write succeeds.
-- Each envelope produces one HTTP response with the specified status. Database failure produces `5xx`, never `200`.
-- An accepted Meta text event is persisted once with provider ID, configured account, Contact/Conversation references, body, provider timestamp, and monotonic sequence, with no downstream automation.
-- Workflow export identity, approved node inventory, secret scans, cleanup, and `git diff --check` pass; no production credential/customer data is committed or exported.
-
-**External acceptance (separate approval required):**
-
-- With approved Meta test assets and public HTTPS, prove subscription verification, signed delivery, configured WABA/phone identity, supported Graph API version and retirement date, duplicate/out-of-order behavior, permissions, and test/production isolation.
-- Record environment, owner, timestamp, redacted evidence, and result. This evidence is required before the roadmap may describe the slice as credentialed Meta staging.
+- Given generated credentials, when the canonical harness runs, then GET verification plus valid, batch, duplicate/concurrent, conflicting replay, signature grammar/mismatch, wrong/mixed identity, malformed, declared/measured exact and over-limit, unsupported, and database-failure cases return the specified statuses.
+- Given a workflow rejection or batch failure, when PostgreSQL is inspected, then no Contact, Conversation, inbound message, intent, Handoff, or Follow-Up is partially created and exactly one allowlisted minimized audit exists when its write succeeds; n8n's pre-workflow invalid-JSON rejection creates no workflow audit.
+- Given accepted Meta text containing configured human/opt-out signals, when it commits, then messages receive canonical sequence values but create no downstream/suppression/Handoff work.
+- Given final artifacts, when the full harness and identity/security checks pass, then no secret/customer data is committed and `livePromotionAllowed` remains false.
 
 ## Spec Change Log
 
-- 2026-08-01: Corrected Story 1.1 rejection persistence, strict signature/constant-time behavior, all-or-nothing identity validation, bounded payloads, single-response/5xx semantics, Code-node exception, harness matrix, and local-versus-credentialed proof labels.
+- 2026-08-01: Added rejection persistence, strict signature comparison, envelope identity, bounded payload, explicit response/database-failure behavior, and proof labels.
+- 2026-08-02: Investigation found existing ingest signal side effects and partial-batch risk; added an atomic staging-only database boundary and retained the synthetic API unchanged.
+- 2026-08-02: Party review made staging mode server-authoritative, restored declared-size enforcement, required database-side whole-array validation, and defined a non-PII rejection correlation value.
+- 2026-08-02: Human approved the pinned-platform exception: syntactically invalid JSON returns n8n `422` before Workflow 01 and therefore has no workflow audit; valid JSON with invalid schema retains `400` and minimized auditing.
+
+## Design Notes
+
+Use Webhook raw-body capture plus a minimal Code bridge that materializes the pinned task runner's buffer for Crypto v2 with an encrypted credential. The validation Code node performs strict header parsing, byte-size/identity/schema normalization, `crypto.timingSafeEqual`, and the domain-separated correlation digest; neither Code node has network or secret-store access. Refactor existing persistence into an ungranted `ingest_core(text,jsonb,boolean)` helper: public `ingest(text,jsonb)` always passes `false`, while `ingest_meta(text,jsonb)` validates the complete normalized message array before any write and always passes `true`. Request data cannot select the mode. The Meta wrapper raises inside a PostgreSQL subtransaction on any message conflict so all earlier writes roll back, returns the typed conflict only after rollback, and lets unexpected database errors propagate to an explicit `5xx` response. Retain existing runtime grants, add only `ingest_meta(text,jsonb)` and allowlist-validating `record_ingress_rejection(text,text,text)`, and never grant `ingest_core`; synthetic behavior remains unchanged.
 
 ## Verification
 
-After implementation:
+- `powershell -ExecutionPolicy Bypass -File .\tests\run.ps1` — existing S01–S26 plus Story 1.1 matrix pass.
+- `git diff --check` — no whitespace errors.
+- `git status --short` — only reviewed Story 1.1 artifacts; no generated plaintext.
+- 2026-08-02 canonical isolated run — `FULL PASS`; generated credentials, containers, and checkout-scoped volumes removed.
+- 2026-08-02 post-review canonical isolated run — `FULL PASS`; verified terminal staging turns, UTF-8 text and clock-skew boundaries, empty identity/field rejection, measured chunked limit enforcement, exact minimized audits, and the `release-v1` to active `release-v2` upgrade; generated credentials, containers, and checkout-scoped volumes removed.
 
-- `powershell -ExecutionPolicy Bypass -File .\tests\run.ps1`
-- `git diff --check`
-- `git status --short`
+## Review Resolution
 
-Expected: full local suite passes; only reviewed production-delivery artifacts are changed; no generated plaintext remains; `livePromotionAllowed=false`.
+- Adversarial and edge-case review findings were resolved in the shared validation/database boundaries and covered by the canonical harness.
+- No specification defect, intent gap, deferred finding, or accepted security exception remains beyond the human-approved pinned-n8n `422` behavior documented above.
 
-## Auto Run Result
+## Suggested Review Order
 
-**Status:** Blocked before implementation on 2026-08-02.
+**Ingress trust boundary**
 
-**User authorization:** Story 1.1 implementation was explicitly approved from the production delivery proposal.
+- Start with strict raw-byte authentication, identity, schema, size, and timestamp validation.
+  [`01-whatsapp-ingress.json:101`](../../../workflows/01-whatsapp-ingress.json#L101)
 
-**Blocking condition:** The current `main` worktree is dirty after consolidation of the former production-delivery worktree. It contains the organized approved planning package, duplicate untracked pre-organization Story 1.1 context/spec files, a modified `deferred-work.md`, and the completed consolidation spec. `bmad-dev-auto` requires a clean, unambiguous branch before implementation.
+- Raw-body delivery preserves the exact bytes required for Meta HMAC verification.
+  [`01-whatsapp-ingress.json:64`](../../../workflows/01-whatsapp-ingress.json#L64)
 
-**Runtime impact:** None. No workflow, database, configuration, release, test, Compose, or environment file was changed by this run.
+- The minimal bridge exposes the pinned runner buffer without adding a service.
+  [`01-whatsapp-ingress.json:81`](../../../workflows/01-whatsapp-ingress.json#L81)
 
-**Required resolution:** Reconcile the duplicate drafts, review the intended documentation set, and commit or otherwise preserve it on the implementation branch; then resume this spec from `blocked` only after the worktree is clean.
+**Atomic staging persistence**
+
+- Server-owned staging mode makes accepted turns terminal and suppresses downstream automation.
+  [`001-initial.sql:63`](../../../database/001-initial.sql#L63)
+
+- Whole-envelope validation and transaction rollback prevent partial mixed-batch persistence.
+  [`001-initial.sql:82`](../../../database/001-initial.sql#L82)
+
+- Allowlisted, idempotent rejection audits retain only opaque correlation metadata.
+  [`001-initial.sql:79`](../../../database/001-initial.sql#L79)
+
+**Runtime proof**
+
+- Live endpoint checks begin with exact GET verification and staging isolation.
+  [`run.ps1:122`](../../../tests/run.ps1#L122)
+
+- UTF-8, clock-skew, declared, and measured size boundaries exercise trust-edge failures.
+  [`run.ps1:135`](../../../tests/run.ps1#L135)
+
+- Exact rejection counts and minimized shapes prevent false-positive audit coverage.
+  [`run.ps1:140`](../../../tests/run.ps1#L140)
+
+- A prepublished v1 fixture proves the release-v2 upgrade path.
+  [`run.ps1:67`](../../../tests/run.ps1#L67)
+
+**Release and deployment boundary**
+
+- Immutable release-v2 evidence remains explicitly prohibited from live promotion.
+  [`release-manifest.json:28`](../../../release/release-manifest.json#L28)
+
+- Runtime enables only Node crypto and blank, environment-supplied Meta identity values.
+  [`compose.yaml:35`](../../../compose.yaml#L35)
+
+- Source configuration declares blank Meta inputs rather than credentials.
+  [`.env.example:12`](../../../.env.example#L12)
+
+- Deployment guidance separates local protocol proof from approval-gated Meta evidence.
+  [`deployment-guide.md:24`](../../../docs/deployment-guide.md#L24)
