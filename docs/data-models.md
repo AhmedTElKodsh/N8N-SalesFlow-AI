@@ -9,7 +9,7 @@ The `salesflow` schema contains 19 tables. Composite account keys are intentiona
 | `accounts` | Account identity and global enabled state |
 | `config_docs` | Immutable versioned configuration with one active version per kind |
 | `controls` | Account operational controls such as global stop |
-| `auth_tokens` | Hashed role/account/actor bindings |
+| `auth_tokens` | Hashed role/account/actor bindings with expiry and revocation timestamps |
 
 ## Contact and Conversation
 
@@ -37,8 +37,8 @@ The `salesflow` schema contains 19 tables. Composite account keys are intentiona
 | --- | --- |
 | `deletion_requests` | Contact deletion lifecycle |
 | `deletion_targets` | Per-record deletion/minimization evidence |
-| `releases` | Immutable manifest-backed release records |
-| `release_pointers` | Single active release reference per account |
+| `releases` | Immutable manifest-backed release history; rows do not carry active authority |
+| `release_pointers` | The single authoritative active-release reference per account |
 | `audit_events` | Append-only operator/runtime decision evidence |
 
 ## Critical constraints
@@ -49,6 +49,10 @@ The `salesflow` schema contains 19 tables. Composite account keys are intentiona
 - Unique `(account_ref, source_id)` enforces one Handoff for an inbound source.
 - Composite foreign keys preserve account ownership across Contact, Conversation, intent, Follow-Up, Handoff, and evidence rows.
 - Callback status is monotonic; claims/leases must match and remain unexpired at finish time.
+- Conversation lifecycle/owner and turn, intent, provider, Follow-Up, Handoff, deletion, and target states are constrained to the documented vocabulary at the database boundary.
+- Authentication succeeds only for an unrevoked token whose expiry is still in the future; token history can be retained while use is disabled.
+- Configuration content and identity are immutable. Only the activation command may change `active`, and every save or effective activation records its actor and database time.
+- `release_pointers`, not a flag on immutable release history, is the only source for the currently active release.
 - Audit and provider evidence are append-only, with a narrow deletion-mode exception that minimizes identifiers without rewriting the event identity/status/timestamp.
 
 ## Migration strategy

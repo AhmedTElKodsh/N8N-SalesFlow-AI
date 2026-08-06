@@ -1,1 +1,94 @@
-{"id":"salesflow-wf-04","name":"SalesFlow 04 WhatsApp Status","active":false,"nodes":[{"id":"trigger","name":"Authenticated Callback","type":"n8n-nodes-base.webhook","typeVersion":2,"webhookId":"salesflow-status","position":[0,0],"parameters":{"httpMethod":"POST","path":"salesflow/status","responseMode":"lastNode"}},{"id":"callback","name":"Bound Monotonic Callback","type":"n8n-nodes-base.postgres","typeVersion":2.6,"position":[240,0],"credentials":{"postgres":{"id":"salesflow-postgres-local","name":"SalesFlow PostgreSQL"}},"parameters":{"operation":"executeQuery","query":"SELECT salesflow.callback($1,$2::jsonb) result","options":{"queryReplacement":"={{ [$json.headers['x-salesflow-token'] || '', JSON.stringify($json.body || {})] }}"}}}],"connections":{"Authenticated Callback":{"main":[[{"node":"Bound Monotonic Callback","type":"main","index":0}]]}},"settings":{"executionOrder":"v1","saveDataSuccessExecution":"none","saveDataErrorExecution":"none","saveManualExecutions":false}}
+{
+  "id": "salesflow-wf-04",
+  "name": "SalesFlow 04 WhatsApp Status",
+  "active": false,
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Authenticated Callback",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "salesflow-status",
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "salesflow/status",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "callback",
+      "name": "Bound Monotonic Callback",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "salesflow-postgres-local",
+          "name": "SalesFlow PostgreSQL"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH x AS (SELECT salesflow.callback($1,$2::jsonb) result) SELECT result,CASE WHEN result->>'ok'='true' THEN 200 WHEN result->>'reason' IN('invalid','future') THEN 400 WHEN result->>'reason'='wrong_account' THEN 403 WHEN result->>'reason'='provider_mismatch' THEN 404 WHEN result->>'reason'='idempotency_conflict' THEN 409 ELSE 500 END status_code FROM x",
+        "options": {
+          "queryReplacement": "={{ [$json.headers['x-salesflow-token'] || '', JSON.stringify($json.body || {})] }}"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "respond",
+      "name": "Respond to Callback",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json.result}}",
+        "options": {
+          "responseCode": "={{$json.status_code || 500}}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Authenticated Callback": {
+      "main": [
+        [
+          {
+            "node": "Bound Monotonic Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bound Monotonic Callback": {
+      "main": [
+        [
+          {
+            "node": "Respond to Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false
+  }
+}

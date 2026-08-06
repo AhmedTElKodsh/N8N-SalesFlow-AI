@@ -17,9 +17,13 @@ The source workflow set also contains the ingress path above, so there are six d
 
 `salesflow.ingest` authenticates the runtime actor, enforces account scope, validates required strings/timestamps/size, normalizes configured signals, deduplicates by provider ID and payload hash, allocates a monotonic Conversation sequence, and returns a typed result. Only a newly created accepted event starts the orchestrator.
 
+For the signed Meta protocol route, supported text messages are processed independently of unsupported sibling changes in the same envelope. A mixed envelope therefore retains every valid text message, while an envelope containing no supported text is acknowledged without creating business work.
+
 ## Provider status
 
 Allowed statuses are `accepted`, `sent`, `delivered`, `read`, and `failed`. The callback must bind to an existing account/provider ID. Duplicate event IDs with a different payload are rejected, and older/lower-ranked events cannot regress the persisted status.
+
+The live webhook maps accepted and idempotent callbacks to HTTP `200`, malformed input to `400`, invalid credentials or account scope to `403`, an unknown provider identity to `404`, and conflicting duplicate evidence to `409`. Unexpected database or workflow failures are not converted into typed input errors; they propagate as `5xx` so monitoring and retry behavior remain available.
 
 ## Operations actions
 
@@ -28,6 +32,11 @@ Allowed statuses are `accepted`, `sent`, `delivered`, `read`, and `failed`. The 
 | `evidence` | `action` | Counts audit evidence and returns retention/release references. |
 | `delete` | `action`, `contact_id` | Creates target records, minimizes live customer data, and records completion. |
 | `release` | `action`, `release_id`, `manifest`, `manifest_hash` | Activates an immutable release only when the reviewed manifest binding matches. |
+| `config_save` | `action`, `document` | Strictly validates and saves one immutable inactive version, recording the saving actor. |
+| `config_activate` | `action`, `kind`, `version`, `expected_active_version` | Activates or rolls back to one compatible saved version and records the approving actor. |
+| `config_rollback` | `action`, `kind`, `version`, `expected_active_version` | Explicit alias for the same compatible activation contract when selecting an older version. |
+
+`config_activate` is also the rollback command: supply the older saved `version` and the currently active version as `expected_active_version`. Publication conflicts return typed `stale_active_version` or `busy` results without changing the active document. The operations workflow is the authorized public boundary; its database role does not receive direct access to the underlying publication functions or tables.
 
 ## Internal workflow calls
 
@@ -35,4 +44,4 @@ The orchestrator calls workflow 03 or 06 with the authenticated token, `account_
 
 ## Error model
 
-Commands return typed JSON containing fields such as `ok`, `terminal`, `reason`, `work_id`, and claim/lease identifiers. Denials are normal terminal branches, not workflow exceptions. Representative reasons include `wrong_account`, `invalid`, `idempotency_conflict`, `consent_missing`, `global_stop`, `human_owned`, `stale_version`, `already_leased`, `claim_mismatch`, `retry_exhausted`, and `manifest_mismatch`.
+Commands return typed JSON containing fields such as `ok`, `terminal`, `reason`, `work_id`, and claim/lease identifiers. Expected validation, authorization, idempotency, conflict, and policy denials are normal terminal branches. Unexpected database failures remain workflow failures rather than being relabeled `invalid_input`. Representative reasons include `wrong_account`, `invalid`, `idempotency_conflict`, `consent_missing`, `global_stop`, `human_owned`, `stale_version`, `stale_active_version`, `busy`, `already_leased`, `claim_mismatch`, `retry_exhausted`, and `manifest_mismatch`.

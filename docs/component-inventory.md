@@ -4,23 +4,26 @@
 
 | File | Workflow ID | Nodes | Trigger/role | Downstream behavior |
 | --- | --- | ---: | --- | --- |
-| `01-whatsapp-ingress.json` | `salesflow-wf-01` | 5 | POST `salesflow/inbound` | Atomic ingest; invokes workflow 02 only for accepted new work. |
+| `01-whatsapp-ingress.json` | `salesflow-wf-01` | 17 | GET/POST `salesflow/meta` and POST `salesflow/inbound` | Signed Meta protocol proof plus atomic ingest; valid text survives unsupported sibling events. |
 | `02-conversation-orchestrator.json` | `salesflow-wf-02` | 7 | Execute Workflow | Completes one turn and invokes workflow 03 or 06. |
 | `03-outbox-dispatcher.json` | `salesflow-wf-03` | 9 | Execute Workflow or POST `salesflow/dispatch` | Claim, authorize, recheck, synthetic send, finish. |
-| `04-whatsapp-status.json` | `salesflow-wf-04` | 2 | POST `salesflow/status` | Account-bound, idempotent, monotonic provider status. |
+| `04-whatsapp-status.json` | `salesflow-wf-04` | 3 | POST `salesflow/status` | Account-bound, idempotent, monotonic provider status with explicit HTTP outcomes. |
 | `05-follow-up-scheduler.json` | `salesflow-wf-05` | 8 | UTC Schedule or POST `salesflow/followups` | Finds due/retry work across enabled accounts and invokes workflow 03/06. |
 | `06-handoff-dispatcher.json` | `salesflow-wf-06` | 9 | Execute Workflow or POST `salesflow/handoff` | Claim, recheck, synthetic Handoff, finish. |
-| `07-error-and-operations.json` | `salesflow-wf-07` | 2 | POST `salesflow/operations` | Evidence, deletion, and release commands. |
+| `07-error-and-operations.json` | `salesflow-wf-07` | 3 | POST `salesflow/operations` | Evidence, deletion, release, and audited configuration publication commands. |
 
-Total: **7 workflows and 42 nodes**.
+There are seven source workflows. Node counts are release-bound in `release/release-manifest.json`; this inventory describes responsibilities rather than duplicating that canonical value.
 
 ## Approved node inventory
 
 - `executeWorkflow`
 - `executeWorkflowTrigger`
+- `code`
+- `crypto`
 - `if`
 - `noOp`
 - `postgres`
+- `respondToWebhook`
 - `scheduleTrigger`
 - `set`
 - `webhook`
@@ -40,13 +43,15 @@ The manifest rejects extra node types. `Set` is used only for deterministic synt
 | Handoff | `claim_handoff`, `recheck_handoff`, `finish_handoff` |
 | Operations | `operations` |
 
-`database/001-initial.sql` is idempotent and contains later `CREATE OR REPLACE` definitions that supersede earlier versions inside the same migration.
+`database/001-initial.sql` is idempotent and keeps one effective definition for each public function signature.
 
 ## Configuration contracts
 
 The AI uses five separate business-information contracts. Every contract has the same three identity fields: `accountRef` identifies the account (`test-account` in these samples), `kind` is the exact contract name shown below, and `version` identifies the immutable business-information version. A saved version cannot later be changed or deleted.
 
-Saving and activation are separate operator actions. `save_config` validates and permanently stores a new dated inactive version; retrying an identical saved body is harmless, including for historical versions that predate stricter validation. `activate_config` is the approval action: it makes the saved target live and records the kind, target version, previous version, approving actor, and database time in the append-only audit log. Rollback uses the same activation action with an older saved version, so no history is lost. The caller supplies the active version it expects; if another approval wins first, the stale request is rejected without changing the live version.
+Saving and activation are separate operator actions exposed through the existing `salesflow/operations` endpoint; the workflow role receives no table access or direct grant to the private publication functions. Saving strictly validates and permanently stores a new dated inactive version, then records the saving actor and database time. Retrying an identical saved body is harmless. Activation is the approval action: it rechecks compatibility, makes the saved target live, and records the kind, target version, previous version, approving actor, and database time in the append-only audit log. Rollback uses the same activation action with an older compatible saved version, so no history is lost.
+
+Publication is serialized per account and kind with a bounded database lock. The caller supplies the active version it expects; if another approval wins first, the stale request is rejected, and lock contention returns a typed busy result instead of waiting indefinitely. `config_docs.active` may change only inside the activation command, so direct updates cannot bypass approval or audit.
 
 ### Product Knowledge (`product-knowledge.json`, kind `product_knowledge`)
 
@@ -97,7 +102,7 @@ Saving and activation are separate operator actions. `save_config` validates and
 | `backoffSeconds` | Wait before retry, from `1` through `3600` seconds. | `2` |
 | `claimSeconds` | Worker claim duration, from `1` through `300` seconds. | `10` |
 
-Handoff triggers do not live in this dispatch contract: Qualification scores, explicit human signals, and Sales Policy own those decisions. Structural validation rejects missing fields, undocumented fields, wrong JSON types, out-of-range values, and invalid relationships. Human reviewers still own whether the business meaning and provider-managed wording are approved.
+Handoff triggers do not live in this dispatch contract: Qualification scores, explicit human signals, and Sales Policy own those decisions. Structural validation rejects missing fields, undocumented fields, wrong JSON types, fractional values in integer fields, blank or duplicate identifiers, out-of-range values, and invalid relationships. Human reviewers still own whether the business meaning and provider-managed wording are approved. The word `qualified` is an exact synthetic-local test signal, not natural-language qualification logic.
 
 Operational configuration stays separate from the five business contracts: `account.json` controls the synthetic account, `model.json` the local model, `retry.json` shared retries and claims, `retention.json` data retention, and `release-set.json` the reviewed activation-manifest binding.
 

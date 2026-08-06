@@ -25,7 +25,7 @@
     "07-error-and-operations.json"
   ],
   "activationManifest": {
-    "version": "release-v3",
+    "version": "release-v4",
     "policyVersion": "policy-v1",
     "knowledgeVersion": "knowledge-v1",
     "images": [
@@ -54,13 +54,13 @@
       "07-error-and-operations.json"
     ],
     "workflowHashes": {
-      "salesflow-wf-01": "dcc6370d6cc9fdeaa9d8ef04c01708aa78ae4b244713b51304188269e1607331",
+      "salesflow-wf-01": "e4c0ea1a3d8fd07ce1a401a3ff2c7ff4b8a02b8f496902942f54bec5f7b92a4d",
       "salesflow-wf-02": "32edab96a75d602cc03c2ebae990ef9351aa28cd95ca7791f18d5cb7f80aa112",
       "salesflow-wf-03": "16dd1eea1583334df33079d76bd4d5755dedadd2e905f91b49b4e8565e99c0b5",
-      "salesflow-wf-04": "c08ebfd4c48ca536f45f454fb646d58d35daa84a5d94a03298f2b520764c35e5",
+      "salesflow-wf-04": "8a6a1874d55494ef5c7e893bd85b18a078da8bb3c1e698de58cb82d4fdaaf65f",
       "salesflow-wf-05": "415de99056e5967d36e715008f3913a094fc381cf8ff3abcd6f8c151d927c820",
       "salesflow-wf-06": "f991822bc039f18df9d2d41c84b78eda58efdb94f15c66d8d1c31cef7b1bbfb3",
-      "salesflow-wf-07": "9cb2b93546f9a78079a00d4c22bcdcb839ae0b64f225d467d9c9533822a7cb9e"
+      "salesflow-wf-07": "32fc1d23a02ee3332187b3d4476e98410bd5b1d2ecd79c4a9a702fa5da91b0c7"
     },
     "inputHashes": {
       ".env.example": "eb625c5edb0583782c85693c064b523bd01e1cbb279d63bca4d7dc436eb274a4",
@@ -74,31 +74,31 @@
       "config/retention.json": "f408c01157c7865a8e110c35bcd3325091ec8dcd9ae5fb158d935112ebb7a463",
       "config/retry.json": "9b673d234bc49856b993429a70dd5e30e2d8cc9652a77aad88a8e76115ab11de",
       "config/sales-policy.json": "a08f74bca50d4768c0dc050d0128856c8c3417a4b4a4d65e7da520be953688f6",
-      "database/001-initial.sql": "6a5e935425c8f1c2219c881e7966a36d3a24028bb52e5ba15da7de3eb90d742d",
+      "database/001-initial.sql": "ac8ee5c947e1c432fd1e12630911f964aae8d83e2cee706e4db1ac8a620fb663",
       "scripts/canonicalize-workflows.mjs": "4241a5dc0649b1e8e20a495c81c83b578ca97625c582b477cc30d38fd17e6000",
       "tests/pilot-scenarios.json": "af992bdcb26ffb2e7718baa97d3e090e2e0eba0f9c80f81b86e3b2ee83c0ff21",
-      "tests/run.ps1": "6ee03415a5d81a2ea2c43d9818bfde92abb705f3a87b4e1f70a741220607e015",
-      "tests/runtime.sql": "2017e759c3bf3feb99dce58a97374025c6ee92ce561913f0cd03db1e69c8ea31",
-      "workflows/01-whatsapp-ingress.json": "3f4faf9452c295305af0f88acd95a84c0263bee51c44ce10b1066c08953cf772",
+      "tests/run.ps1": "8ec5398dff87b302f8bf61848790dab7165791abc4f5c79ff57b7bd7727138fe",
+      "tests/runtime.sql": "e360b962561011943d4e6325324973adad5098b8916b501c40c99b214c0d0dad",
+      "workflows/01-whatsapp-ingress.json": "b66b9e8f87c8b269307f3243f37ad9b96797ee270f85088cf3461d34e4289723",
       "workflows/02-conversation-orchestrator.json": "7138564b9d065b000ca681029b99ec50f378e91d51ba965c6693d40f238c7a04",
       "workflows/03-outbox-dispatcher.json": "c8ea9c297380eae0de6062ac43b0216625292df51097ec9e25b7a10519392062",
-      "workflows/04-whatsapp-status.json": "98d7ec2cb3afb44dac32b8a0f32c55614e0a575e259a9fea0d80801c985025d0",
+      "workflows/04-whatsapp-status.json": "6932dbe5c090ae7650185d9d3bdca06a40e3457f006e52675b2b59c34580e6cd",
       "workflows/05-follow-up-scheduler.json": "630f9a20166590a73be6c980b182f50f9e23738c53beb87f86159e06a9f93577",
       "workflows/06-handoff-dispatcher.json": "cd0ba9d14733da1b8149a3baf910071c0dd80f6def589b766db3cca0714ac84c",
-      "workflows/07-error-and-operations.json": "e941e14140620935db51417b3f686e475ef76b573987016552696e9c8a937d91"
+      "workflows/07-error-and-operations.json": "ac6b7b90a9fe094445915b6eec116ddecf0613da6092f62455f5250042d323e4"
     }
   },
-  "activationManifestSha256": "d183b4d88c4a589fb1fdb691e5768b4c22218f400237d62169db0d5eddc26dc0",
+  "activationManifestSha256": "364382d5add4c6c84f60076231d102dff7c5ff8fb7cab2462fb034725497f517",
   "workflowHashes": {
-    "salesflow-wf-01": "dcc6370d6cc9fdeaa9d8ef04c01708aa78ae4b244713b51304188269e1607331",
+    "salesflow-wf-01": "e4c0ea1a3d8fd07ce1a401a3ff2c7ff4b8a02b8f496902942f54bec5f7b92a4d",
     "salesflow-wf-02": "32edab96a75d602cc03c2ebae990ef9351aa28cd95ca7791f18d5cb7f80aa112",
     "salesflow-wf-03": "16dd1eea1583334df33079d76bd4d5755dedadd2e905f91b49b4e8565e99c0b5",
-    "salesflow-wf-04": "c08ebfd4c48ca536f45f454fb646d58d35daa84a5d94a03298f2b520764c35e5",
+    "salesflow-wf-04": "8a6a1874d55494ef5c7e893bd85b18a078da8bb3c1e698de58cb82d4fdaaf65f",
     "salesflow-wf-05": "415de99056e5967d36e715008f3913a094fc381cf8ff3abcd6f8c151d927c820",
     "salesflow-wf-06": "f991822bc039f18df9d2d41c84b78eda58efdb94f15c66d8d1c31cef7b1bbfb3",
-    "salesflow-wf-07": "9cb2b93546f9a78079a00d4c22bcdcb839ae0b64f225d467d9c9533822a7cb9e"
+    "salesflow-wf-07": "32fc1d23a02ee3332187b3d4476e98410bd5b1d2ecd79c4a9a702fa5da91b0c7"
   },
-  "combinedWorkflowSha256": "726852fdbcb623f8e100c4e0fa0e306d81e540514462467d4341dfbe2682b823",
+  "combinedWorkflowSha256": "c671ea80ddf0174726f1074a2700e4b10e739da52a7d41827ac810611dd8daab",
   "nodeTypes": [
     "n8n-nodes-base.code",
     "n8n-nodes-base.crypto",
@@ -121,22 +121,22 @@
     "config/model.json": "3571099e2371f2f5c14f563d8c6ce603d9522ef9de8b66e7e2082649bc8a99b9",
     "config/product-knowledge.json": "993907729410bd15136b67392544215bf85a08b541847474ea39c33ab8f8e2ce",
     "config/qualification.json": "72bbaa1bd393a77159bad4921b0977a2a68afb5a374f37036207e5d173c1def2",
-    "config/release-set.json": "5a33becad87afa8c1bc76799f7e2b14b6be8a4b4ea306ab93bdd9d34795ea66b",
+    "config/release-set.json": "312afdc58df39d228e11c432c845e33940f766c4fe7e00692d5710abba803be3",
     "config/retention.json": "f408c01157c7865a8e110c35bcd3325091ec8dcd9ae5fb158d935112ebb7a463",
     "config/retry.json": "9b673d234bc49856b993429a70dd5e30e2d8cc9652a77aad88a8e76115ab11de",
     "config/sales-policy.json": "a08f74bca50d4768c0dc050d0128856c8c3417a4b4a4d65e7da520be953688f6",
-    "database/001-initial.sql": "6a5e935425c8f1c2219c881e7966a36d3a24028bb52e5ba15da7de3eb90d742d",
+    "database/001-initial.sql": "ac8ee5c947e1c432fd1e12630911f964aae8d83e2cee706e4db1ac8a620fb663",
     "scripts/canonicalize-workflows.mjs": "4241a5dc0649b1e8e20a495c81c83b578ca97625c582b477cc30d38fd17e6000",
     "tests/pilot-scenarios.json": "af992bdcb26ffb2e7718baa97d3e090e2e0eba0f9c80f81b86e3b2ee83c0ff21",
-    "tests/run.ps1": "6ee03415a5d81a2ea2c43d9818bfde92abb705f3a87b4e1f70a741220607e015",
-    "tests/runtime.sql": "2017e759c3bf3feb99dce58a97374025c6ee92ce561913f0cd03db1e69c8ea31",
-    "workflows/01-whatsapp-ingress.json": "3f4faf9452c295305af0f88acd95a84c0263bee51c44ce10b1066c08953cf772",
+    "tests/run.ps1": "8ec5398dff87b302f8bf61848790dab7165791abc4f5c79ff57b7bd7727138fe",
+    "tests/runtime.sql": "e360b962561011943d4e6325324973adad5098b8916b501c40c99b214c0d0dad",
+    "workflows/01-whatsapp-ingress.json": "b66b9e8f87c8b269307f3243f37ad9b96797ee270f85088cf3461d34e4289723",
     "workflows/02-conversation-orchestrator.json": "7138564b9d065b000ca681029b99ec50f378e91d51ba965c6693d40f238c7a04",
     "workflows/03-outbox-dispatcher.json": "c8ea9c297380eae0de6062ac43b0216625292df51097ec9e25b7a10519392062",
-    "workflows/04-whatsapp-status.json": "98d7ec2cb3afb44dac32b8a0f32c55614e0a575e259a9fea0d80801c985025d0",
+    "workflows/04-whatsapp-status.json": "6932dbe5c090ae7650185d9d3bdca06a40e3457f006e52675b2b59c34580e6cd",
     "workflows/05-follow-up-scheduler.json": "630f9a20166590a73be6c980b182f50f9e23738c53beb87f86159e06a9f93577",
     "workflows/06-handoff-dispatcher.json": "cd0ba9d14733da1b8149a3baf910071c0dd80f6def589b766db3cca0714ac84c",
-    "workflows/07-error-and-operations.json": "e941e14140620935db51417b3f686e475ef76b573987016552696e9c8a937d91"
+    "workflows/07-error-and-operations.json": "ac6b7b90a9fe094445915b6eec116ddecf0613da6092f62455f5250042d323e4"
   },
   "livePromotionAllowed": false
 }

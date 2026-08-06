@@ -9,20 +9,37 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "webhookId": "salesflow-inbound",
-      "position": [0, 0],
-      "parameters": {"httpMethod": "POST", "path": "salesflow/inbound", "responseMode": "lastNode"}
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "salesflow/inbound",
+        "responseMode": "lastNode"
+      }
     },
     {
       "id": "ingest",
       "name": "Atomic Ingest",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [220, 0],
-      "credentials": {"postgres": {"id": "salesflow-postgres-local", "name": "SalesFlow PostgreSQL"}},
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "salesflow-postgres-local",
+          "name": "SalesFlow PostgreSQL"
+        }
+      },
       "parameters": {
         "operation": "executeQuery",
         "query": "WITH x AS (SELECT salesflow.ingest($1,$2::jsonb) result) SELECT result,$1::text token,result->>'account_ref' account_ref FROM x",
-        "options": {"queryReplacement": "={{ [$json.headers['x-salesflow-token'] || '', JSON.stringify($json.body || {})] }}"}
+        "options": {
+          "queryReplacement": "={{ [$json.headers['x-salesflow-token'] || '', JSON.stringify($json.body || {})] }}"
+        }
       }
     },
     {
@@ -30,34 +47,105 @@
       "name": "Accepted and Created",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [440, 0],
-      "parameters": {"conditions": {"options": {"caseSensitive": true}, "combinator": "and", "conditions": [{"leftValue": "={{$json.result.accepted === true && $json.result.created === true}}", "operator": {"type": "boolean", "operation": "true", "singleValue": true}}]}}
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.result.accepted === true && $json.result.created === true}}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      }
     },
     {
       "id": "orchestrate",
       "name": "Run Orchestrator",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [660, -80],
-      "parameters": {"workflowId": {"__rl": true, "value": "salesflow-wf-02", "mode": "id"}, "options": {"waitForSubWorkflow": true}}
+      "position": [
+        660,
+        -80
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "salesflow-wf-02",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
     },
-    {"id": "rejected", "name": "Typed Terminal", "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [660, 80], "parameters": {}},
+    {
+      "id": "rejected",
+      "name": "Typed Terminal",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        660,
+        80
+      ],
+      "parameters": {}
+    },
     {
       "id": "meta-get",
       "name": "Meta Verification",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "webhookId": "salesflow-meta-get",
-      "position": [0, 300],
-      "parameters": {"httpMethod": "GET", "path": "salesflow/meta", "responseMode": "responseNode"}
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "salesflow/meta",
+        "responseMode": "responseNode"
+      }
     },
     {
       "id": "meta-get-config",
       "name": "Meta Verification Input",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [220, 300],
-      "parameters": {"assignments": {"assignments": [{"id": "verify-kind", "name": "request_kind", "type": "string", "value": "verify"}, {"id": "verify-token", "name": "expected_verify_token", "type": "string", "value": "={{$env.META_VERIFY_TOKEN}}"}]}, "includeOtherFields": true, "options": {}}
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "verify-kind",
+              "name": "request_kind",
+              "type": "string",
+              "value": "verify"
+            },
+            {
+              "id": "verify-token",
+              "name": "expected_verify_token",
+              "type": "string",
+              "value": "={{$env.META_VERIFY_TOKEN}}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
     },
     {
       "id": "meta-post",
@@ -65,23 +153,76 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "webhookId": "salesflow-meta-post",
-      "position": [0, 520],
-      "parameters": {"httpMethod": "POST", "path": "salesflow/meta", "responseMode": "responseNode", "options": {"rawBody": true}}
+      "position": [
+        0,
+        520
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "salesflow/meta",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      }
     },
     {
       "id": "meta-post-config",
       "name": "Meta Delivery Input",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [220, 520],
-      "parameters": {"assignments": {"assignments": [{"id": "delivery-kind", "name": "request_kind", "type": "string", "value": "delivery"}, {"id": "meta-account", "name": "configured_account_ref", "type": "string", "value": "={{$env.META_ACCOUNT_REF}}"}, {"id": "meta-waba", "name": "configured_waba_id", "type": "string", "value": "={{$env.META_WABA_ID}}"}, {"id": "meta-phone", "name": "configured_phone_number_id", "type": "string", "value": "={{$env.META_PHONE_NUMBER_ID}}"}, {"id": "meta-runtime", "name": "runtime_token", "type": "string", "value": "={{$env.META_RUNTIME_TOKEN}}"}]}, "includeOtherFields": true, "options": {}}
+      "position": [
+        220,
+        520
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "delivery-kind",
+              "name": "request_kind",
+              "type": "string",
+              "value": "delivery"
+            },
+            {
+              "id": "meta-account",
+              "name": "configured_account_ref",
+              "type": "string",
+              "value": "={{$env.META_ACCOUNT_REF}}"
+            },
+            {
+              "id": "meta-waba",
+              "name": "configured_waba_id",
+              "type": "string",
+              "value": "={{$env.META_WABA_ID}}"
+            },
+            {
+              "id": "meta-phone",
+              "name": "configured_phone_number_id",
+              "type": "string",
+              "value": "={{$env.META_PHONE_NUMBER_ID}}"
+            },
+            {
+              "id": "meta-runtime",
+              "name": "runtime_token",
+              "type": "string",
+              "value": "={{$env.META_RUNTIME_TOKEN}}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
     },
     {
       "id": "meta-raw-body-buffer",
       "name": "Capture Meta Raw Body",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 640],
+      "position": [
+        440,
+        640
+      ],
       "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "const raw=await helpers.getBinaryDataBuffer(0,'data'),data=raw.toString('base64');return{json:{...$json,raw_body_base64:data},binary:{data:{data,mimeType:'application/json'}}};"
@@ -92,19 +233,37 @@
       "name": "Meta Raw Body HMAC",
       "type": "n8n-nodes-base.crypto",
       "typeVersion": 2,
-      "position": [440, 520],
-      "credentials": {"crypto": {"id": "salesflow-meta-hmac-local", "name": "SalesFlow Meta HMAC"}},
-      "parameters": {"action": "hmac", "binaryData": true, "binaryPropertyName": "data", "type": "SHA256", "dataPropertyName": "expected_hmac", "encoding": "hex"}
+      "position": [
+        440,
+        520
+      ],
+      "credentials": {
+        "crypto": {
+          "id": "salesflow-meta-hmac-local",
+          "name": "SalesFlow Meta HMAC"
+        }
+      },
+      "parameters": {
+        "action": "hmac",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "type": "SHA256",
+        "dataPropertyName": "expected_hmac",
+        "encoding": "hex"
+      }
     },
     {
       "id": "meta-validate",
       "name": "Validate Meta Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 400],
+      "position": [
+        680,
+        400
+      ],
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const crypto=require('crypto');\nconst hash=v=>crypto.createHash('sha256').update(String(v)).digest();\nif($json.request_kind==='verify'){const q=$json.query||{};const supplied=String(q['hub.verify_token']||'');const expected=String($json.expected_verify_token||'');const valid=q['hub.mode']==='subscribe'&&typeof q['hub.challenge']==='string'&&q['hub.challenge']!==''&&expected!==''&&crypto.timingSafeEqual(hash(supplied),hash(expected));return{json:{action:'respond',status_code:valid?200:403,response_body:valid?q['hub.challenge']:'Forbidden'}};}\nconst expected=String($json.expected_hmac||'').toLowerCase();const correlation=reason=>crypto.createHash('sha256').update('salesflow:meta-rejection:v1:'+reason+':'+expected).digest('hex');const reject=(reason,status)=>({json:{action:'reject',runtime_token:$json.runtime_token,reason,correlation:correlation(reason),status_code:status}});const header=$json.headers?.['x-hub-signature-256'];if(typeof header!=='string'||!/^sha256=[0-9a-fA-F]{64}$/.test(header)||!/^[0-9a-f]{64}$/.test(expected))return reject('invalid_signature',403);const supplied=Buffer.from(header.slice(7),'hex');const wanted=Buffer.from(expected,'hex');if(supplied.length!==32||wanted.length!==32||!crypto.timingSafeEqual(supplied,wanted))return reject('invalid_signature',403);const rawValue=$json.raw_body_base64;if(typeof rawValue!=='string')return reject('malformed_payload',400);const raw=Buffer.from(rawValue,'base64');const declared=$json.headers?.['content-length'];if((declared!==undefined&&(!/^\\d+$/.test(String(declared))||Number(declared)>262144))||raw.length>262144)return reject('oversized_payload',400);const decoded=raw.toString('utf8');if(!Buffer.from(decoded,'utf8').equals(raw))return reject('malformed_payload',400);let body;try{body=JSON.parse(decoded);}catch{return reject('malformed_payload',400);}if(!body||typeof body!=='object'||Array.isArray(body)||!Array.isArray(body.entry)||body.entry.length===0||typeof body.object!=='string')return reject('malformed_payload',400);if(body.object!=='whatsapp_business_account')return reject('wrong_identity',403);const messages=[];let unsupported=false;for(const entry of body.entry){if(!entry||typeof entry!=='object'||typeof entry.id!=='string'||entry.id===''||!Array.isArray(entry.changes)||entry.changes.length===0)return reject('malformed_payload',400);if(entry.id!==$json.configured_waba_id)return reject('wrong_identity',403);for(const change of entry.changes){const value=change?.value;if(!change||typeof change!=='object'||typeof change.field!=='string'||change.field===''||!value||typeof value!=='object'||typeof value.metadata?.phone_number_id!=='string'||value.metadata.phone_number_id==='')return reject('malformed_payload',400);if(value.metadata.phone_number_id!==$json.configured_phone_number_id)return reject('wrong_identity',403);if(change.field!=='messages'||!Array.isArray(value.messages)||value.messages.length===0){unsupported=true;continue;}for(const message of value.messages){if(!message||typeof message!=='object'||typeof message.id!=='string'||message.id===''||typeof message.from!=='string'||message.from===''||typeof message.timestamp!=='string'||!/^\\d+$/.test(message.timestamp)||typeof message.type!=='string'||message.type==='')return reject('malformed_payload',400);const received=new Date(Number(message.timestamp)*1000);if(!Number.isFinite(received.getTime())||received.getTime()>Date.now()+300000)return reject('malformed_payload',400);if(message.type!=='text'){unsupported=true;continue;}if(typeof message.text?.body!=='string'||message.text.body===''||Buffer.byteLength(message.text.body,'utf8')>8192)return reject('malformed_payload',400);messages.push({account_ref:$json.configured_account_ref,provider_id:message.id,contact_ref:message.from,body:message.text.body,received_at:received.toISOString()});}}}\nif(unsupported||messages.length===0)return reject('unsupported_event',200);return{json:{action:'ingest',runtime_token:$json.runtime_token,payload:{account_ref:$json.configured_account_ref,correlation:correlation('accepted'),messages}}};"
+        "jsCode": "const crypto=require('crypto');\nconst hash=v=>crypto.createHash('sha256').update(String(v)).digest();\nif($json.request_kind==='verify'){const q=$json.query||{};const supplied=String(q['hub.verify_token']||'');const expected=String($json.expected_verify_token||'');const valid=q['hub.mode']==='subscribe'&&typeof q['hub.challenge']==='string'&&q['hub.challenge']!==''&&expected!==''&&crypto.timingSafeEqual(hash(supplied),hash(expected));return{json:{action:'respond',status_code:valid?200:403,response_body:valid?q['hub.challenge']:'Forbidden'}};}\nconst expected=String($json.expected_hmac||'').toLowerCase();const correlation=reason=>crypto.createHash('sha256').update('salesflow:meta-rejection:v1:'+reason+':'+expected).digest('hex');const reject=(reason,status)=>({json:{action:'reject',runtime_token:$json.runtime_token,reason,correlation:correlation(reason),status_code:status}});const header=$json.headers?.['x-hub-signature-256'];if(typeof header!=='string'||!/^sha256=[0-9a-fA-F]{64}$/.test(header)||!/^[0-9a-f]{64}$/.test(expected))return reject('invalid_signature',403);const supplied=Buffer.from(header.slice(7),'hex');const wanted=Buffer.from(expected,'hex');if(supplied.length!==32||wanted.length!==32||!crypto.timingSafeEqual(supplied,wanted))return reject('invalid_signature',403);const rawValue=$json.raw_body_base64;if(typeof rawValue!=='string')return reject('malformed_payload',400);const raw=Buffer.from(rawValue,'base64');const declared=$json.headers?.['content-length'];if((declared!==undefined&&(!/^\\d+$/.test(String(declared))||Number(declared)>262144))||raw.length>262144)return reject('oversized_payload',400);const decoded=raw.toString('utf8');if(!Buffer.from(decoded,'utf8').equals(raw))return reject('malformed_payload',400);let body;try{body=JSON.parse(decoded);}catch{return reject('malformed_payload',400);}if(!body||typeof body!=='object'||Array.isArray(body)||!Array.isArray(body.entry)||body.entry.length===0||typeof body.object!=='string')return reject('malformed_payload',400);if(body.object!=='whatsapp_business_account')return reject('wrong_identity',403);const messages=[];let unsupported=false;for(const entry of body.entry){if(!entry||typeof entry!=='object'||typeof entry.id!=='string'||entry.id===''||!Array.isArray(entry.changes)||entry.changes.length===0)return reject('malformed_payload',400);if(entry.id!==$json.configured_waba_id)return reject('wrong_identity',403);for(const change of entry.changes){if(!change||typeof change!=='object'||typeof change.field!=='string'||change.field==='')return reject('malformed_payload',400);if(change.field!=='messages'){unsupported=true;continue;}const value=change.value;if(!value||typeof value!=='object'||typeof value.metadata?.phone_number_id!=='string'||value.metadata.phone_number_id==='')return reject('malformed_payload',400);if(value.metadata.phone_number_id!==$json.configured_phone_number_id)return reject('wrong_identity',403);if(!Array.isArray(value.messages)||value.messages.length===0){unsupported=true;continue;}for(const message of value.messages){if(!message||typeof message!=='object'||typeof message.id!=='string'||message.id===''||typeof message.from!=='string'||message.from===''||typeof message.timestamp!=='string'||!/^\\d+$/.test(message.timestamp)||typeof message.type!=='string'||message.type==='')return reject('malformed_payload',400);const received=new Date(Number(message.timestamp)*1000);if(!Number.isFinite(received.getTime())||received.getTime()>Date.now()+300000)return reject('malformed_payload',400);if(message.type!=='text'){unsupported=true;continue;}if(typeof message.text?.body!=='string'||message.text.body===''||Buffer.byteLength(message.text.body,'utf8')>8192)return reject('malformed_payload',400);messages.push({account_ref:$json.configured_account_ref,provider_id:message.id,contact_ref:message.from,body:message.text.body,received_at:received.toISOString()});}}}\nif(messages.length===0)return reject('unsupported_event',200);return{json:{action:'ingest',runtime_token:$json.runtime_token,payload:{account_ref:$json.configured_account_ref,correlation:correlation('accepted'),messages}}};"
       }
     },
     {
@@ -112,61 +271,304 @@
       "name": "Direct Meta Response",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [900, 400],
-      "parameters": {"conditions": {"options": {"caseSensitive": true}, "combinator": "and", "conditions": [{"leftValue": "={{$json.action === 'respond'}}", "operator": {"type": "boolean", "operation": "true", "singleValue": true}}]}}
+      "position": [
+        900,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.action === 'respond'}}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      }
     },
     {
       "id": "meta-persist-route",
       "name": "Persist Meta Messages",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1120, 500],
-      "parameters": {"conditions": {"options": {"caseSensitive": true}, "combinator": "and", "conditions": [{"leftValue": "={{$json.action === 'ingest'}}", "operator": {"type": "boolean", "operation": "true", "singleValue": true}}]}}
+      "position": [
+        1120,
+        500
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.action === 'ingest'}}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      }
     },
     {
       "id": "meta-ingest",
       "name": "Atomic Meta Ingest",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1340, 440],
+      "position": [
+        1340,
+        440
+      ],
       "onError": "continueRegularOutput",
-      "credentials": {"postgres": {"id": "salesflow-postgres-local", "name": "SalesFlow PostgreSQL"}},
-      "parameters": {"operation": "executeQuery", "query": "WITH x AS (SELECT salesflow.ingest_meta($1,$2::jsonb) result) SELECT result,CASE WHEN result->>'accepted'='true' THEN 200 WHEN result->>'reason'='idempotency_conflict' THEN 409 ELSE 500 END status_code,CASE WHEN result->>'accepted'='true' THEN 'Accepted' WHEN result->>'reason'='idempotency_conflict' THEN 'Conflict' ELSE 'Retry' END response_body FROM x", "options": {"queryReplacement": "={{ [$json.runtime_token, JSON.stringify($json.payload)] }}"}}
+      "credentials": {
+        "postgres": {
+          "id": "salesflow-postgres-local",
+          "name": "SalesFlow PostgreSQL"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH x AS (SELECT salesflow.ingest_meta($1,$2::jsonb) result) SELECT result,CASE WHEN result->>'accepted'='true' THEN 200 WHEN result->>'reason'='idempotency_conflict' THEN 409 ELSE 500 END status_code,CASE WHEN result->>'accepted'='true' THEN 'Accepted' WHEN result->>'reason'='idempotency_conflict' THEN 'Conflict' ELSE 'Retry' END response_body FROM x",
+        "options": {
+          "queryReplacement": "={{ [$json.runtime_token, JSON.stringify($json.payload)] }}"
+        }
+      }
     },
     {
       "id": "meta-rejection",
       "name": "Record Meta Rejection",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1340, 600],
+      "position": [
+        1340,
+        600
+      ],
       "onError": "continueRegularOutput",
-      "credentials": {"postgres": {"id": "salesflow-postgres-local", "name": "SalesFlow PostgreSQL"}},
-      "parameters": {"operation": "executeQuery", "query": "WITH x AS (SELECT salesflow.record_ingress_rejection($1,$2,$3) result) SELECT result,CASE WHEN result->>'ok'='true' THEN $4::int ELSE 500 END status_code,CASE WHEN result->>'ok'='true' THEN 'Rejected' ELSE 'Retry' END response_body FROM x", "options": {"queryReplacement": "={{ [$json.runtime_token, $json.reason, $json.correlation, $json.status_code] }}"}}
+      "credentials": {
+        "postgres": {
+          "id": "salesflow-postgres-local",
+          "name": "SalesFlow PostgreSQL"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH x AS (SELECT salesflow.record_ingress_rejection($1,$2,$3) result) SELECT result,CASE WHEN result->>'ok'='true' THEN $4::int ELSE 500 END status_code,CASE WHEN result->>'ok'='true' THEN 'Rejected' ELSE 'Retry' END response_body FROM x",
+        "options": {
+          "queryReplacement": "={{ [$json.runtime_token, $json.reason, $json.correlation, $json.status_code] }}"
+        }
+      }
     },
     {
       "id": "meta-response",
       "name": "Respond to Meta",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [1580, 400],
-      "parameters": {"respondWith": "text", "responseBody": "={{$json.response_body || 'Retry'}}", "options": {"responseCode": "={{$json.status_code || 500}}"}}
+      "position": [
+        1580,
+        400
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{$json.response_body || 'Retry'}}",
+        "options": {
+          "responseCode": "={{$json.status_code || 500}}"
+        }
+      }
     }
   ],
   "connections": {
-    "Authenticated Inbound": {"main": [[{"node": "Atomic Ingest", "type": "main", "index": 0}]]},
-    "Atomic Ingest": {"main": [[{"node": "Accepted and Created", "type": "main", "index": 0}]]},
-    "Accepted and Created": {"main": [[{"node": "Run Orchestrator", "type": "main", "index": 0}], [{"node": "Typed Terminal", "type": "main", "index": 0}]]},
-    "Meta Verification": {"main": [[{"node": "Meta Verification Input", "type": "main", "index": 0}]]},
-    "Meta Verification Input": {"main": [[{"node": "Validate Meta Request", "type": "main", "index": 0}]]},
-    "Meta Delivery": {"main": [[{"node": "Meta Delivery Input", "type": "main", "index": 0}]]},
-    "Meta Delivery Input": {"main": [[{"node": "Capture Meta Raw Body", "type": "main", "index": 0}]]},
-    "Capture Meta Raw Body": {"main": [[{"node": "Meta Raw Body HMAC", "type": "main", "index": 0}]]},
-    "Meta Raw Body HMAC": {"main": [[{"node": "Validate Meta Request", "type": "main", "index": 0}]]},
-    "Validate Meta Request": {"main": [[{"node": "Direct Meta Response", "type": "main", "index": 0}]]},
-    "Direct Meta Response": {"main": [[{"node": "Respond to Meta", "type": "main", "index": 0}], [{"node": "Persist Meta Messages", "type": "main", "index": 0}]]},
-    "Persist Meta Messages": {"main": [[{"node": "Atomic Meta Ingest", "type": "main", "index": 0}], [{"node": "Record Meta Rejection", "type": "main", "index": 0}]]},
-    "Atomic Meta Ingest": {"main": [[{"node": "Respond to Meta", "type": "main", "index": 0}]]},
-    "Record Meta Rejection": {"main": [[{"node": "Respond to Meta", "type": "main", "index": 0}]]}
+    "Authenticated Inbound": {
+      "main": [
+        [
+          {
+            "node": "Atomic Ingest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atomic Ingest": {
+      "main": [
+        [
+          {
+            "node": "Accepted and Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accepted and Created": {
+      "main": [
+        [
+          {
+            "node": "Run Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Typed Terminal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta Verification": {
+      "main": [
+        [
+          {
+            "node": "Meta Verification Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta Verification Input": {
+      "main": [
+        [
+          {
+            "node": "Validate Meta Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta Delivery": {
+      "main": [
+        [
+          {
+            "node": "Meta Delivery Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta Delivery Input": {
+      "main": [
+        [
+          {
+            "node": "Capture Meta Raw Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Meta Raw Body": {
+      "main": [
+        [
+          {
+            "node": "Meta Raw Body HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta Raw Body HMAC": {
+      "main": [
+        [
+          {
+            "node": "Validate Meta Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Meta Request": {
+      "main": [
+        [
+          {
+            "node": "Direct Meta Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Direct Meta Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Meta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Persist Meta Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Meta Messages": {
+      "main": [
+        [
+          {
+            "node": "Atomic Meta Ingest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Record Meta Rejection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atomic Meta Ingest": {
+      "main": [
+        [
+          {
+            "node": "Respond to Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Meta Rejection": {
+      "main": [
+        [
+          {
+            "node": "Respond to Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": {"executionOrder": "v1", "saveDataSuccessExecution": "none", "saveDataErrorExecution": "none", "saveManualExecutions": false}
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false
+  }
 }

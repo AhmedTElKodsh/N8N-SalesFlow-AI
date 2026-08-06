@@ -1,1 +1,94 @@
-{"id":"salesflow-wf-07","name":"SalesFlow 07 Error and Operations","active":false,"nodes":[{"id":"trigger","name":"Role Bound Operations","type":"n8n-nodes-base.webhook","typeVersion":2,"webhookId":"salesflow-operations","position":[0,0],"parameters":{"httpMethod":"POST","path":"salesflow/operations","responseMode":"lastNode"}},{"id":"ops","name":"Account Bound Command","type":"n8n-nodes-base.postgres","typeVersion":2.6,"position":[240,0],"credentials":{"postgres":{"id":"salesflow-postgres-local","name":"SalesFlow PostgreSQL"}},"parameters":{"operation":"executeQuery","query":"SELECT salesflow.operations($1,NULL,$2::jsonb) result","options":{"queryReplacement":"={{ [$json.headers['x-salesflow-token'] || '', JSON.stringify($json.body || {})] }}"}}}],"connections":{"Role Bound Operations":{"main":[[{"node":"Account Bound Command","type":"main","index":0}]]}},"settings":{"executionOrder":"v1","saveDataSuccessExecution":"none","saveDataErrorExecution":"none","saveManualExecutions":false}}
+{
+  "id": "salesflow-wf-07",
+  "name": "SalesFlow 07 Error and Operations",
+  "active": false,
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Role Bound Operations",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "salesflow-operations",
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "salesflow/operations",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "ops",
+      "name": "Account Bound Command",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "salesflow-postgres-local",
+          "name": "SalesFlow PostgreSQL"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH x AS (SELECT salesflow.operations($1,NULL,$2::jsonb) result) SELECT result,CASE WHEN result->>'ok'='true' THEN 200 WHEN result->>'reason' IN('wrong_account','unauthorized') THEN 403 WHEN result->>'reason'='not_found' THEN 404 WHEN result->>'reason' IN('stale_active_version','version_immutable','release_exists') THEN 409 WHEN result->>'reason'='busy' THEN 503 WHEN result->>'reason' IN('invalid_input','invalid_action','invalid_config','incompatible_config','manifest_mismatch') THEN 400 ELSE 500 END status_code FROM x",
+        "options": {
+          "queryReplacement": "={{ [$json.headers['x-salesflow-token'] || '', JSON.stringify($json.body || {})] }}"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "respond",
+      "name": "Respond to Operations",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json.result}}",
+        "options": {
+          "responseCode": "={{$json.status_code || 500}}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Role Bound Operations": {
+      "main": [
+        [
+          {
+            "node": "Account Bound Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Account Bound Command": {
+      "main": [
+        [
+          {
+            "node": "Respond to Operations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false
+  }
+}
