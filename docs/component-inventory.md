@@ -31,7 +31,7 @@ The manifest rejects extra node types. `Set` is used only for deterministic synt
 
 | Area | Primary functions |
 | --- | --- |
-| Authentication/configuration | `actor_for`, `bootstrap`, `validate_config`, `publish_config`, `set_control` |
+| Authentication/configuration | `actor_for`, `bootstrap`, `validate_config`, `save_config`, `activate_config`, `set_control` |
 | Consent/ingress | `set_consent`, `ingest` |
 | Turn processing | `complete_turn` |
 | Outbox | `authorization_reason`, `claim_dispatch`, `recheck_dispatch`, `finish_dispatch` |
@@ -44,7 +44,9 @@ The manifest rejects extra node types. `Set` is used only for deterministic synt
 
 ## Configuration contracts
 
-The AI uses five separate business-information contracts. Every contract has the same three identity fields: `accountRef` identifies the account (`test-account` in these samples), `kind` is the exact contract name shown below, and `version` identifies the immutable business-information version. A published version cannot later be changed.
+The AI uses five separate business-information contracts. Every contract has the same three identity fields: `accountRef` identifies the account (`test-account` in these samples), `kind` is the exact contract name shown below, and `version` identifies the immutable business-information version. A saved version cannot later be changed or deleted.
+
+Saving and activation are separate operator actions. `save_config` validates and permanently stores a new dated inactive version; retrying an identical saved body is harmless, including for historical versions that predate stricter validation. `activate_config` is the approval action: it makes the saved target live and records the kind, target version, previous version, approving actor, and database time in the append-only audit log. Rollback uses the same activation action with an older saved version, so no history is lost. The caller supplies the active version it expects; if another approval wins first, the stale request is rejected without changing the live version.
 
 ### Product Knowledge (`product-knowledge.json`, kind `product_knowledge`)
 
