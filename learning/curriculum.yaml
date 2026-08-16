@@ -1,0 +1,18 @@
+{
+  "curriculumVersion": 1,
+  "starterRef": "starter/salesflow-guided-v1",
+  "referenceRef": "reference/salesflow-complete-v1",
+  "milestones": [
+    {"id":"M00","directory":"M00-orientation","title":"Repository orientation","prerequisites":[]},
+    {"id":"M01","directory":"M01-local-stack","title":"Smallest local stack","prerequisites":["M00"]},
+    {"id":"M02","directory":"M02-first-vertical-slice","title":"First vertical slice","prerequisites":["M01"]},
+    {"id":"M03","directory":"M03-durable-identity","title":"Durable identity","prerequisites":["M02"]},
+    {"id":"M04","directory":"M04-safe-repetition","title":"Safe repetition","prerequisites":["M03"]},
+    {"id":"M05","directory":"M05-governed-intelligence","title":"Governed intelligence","prerequisites":["M04"]},
+    {"id":"M06","directory":"M06-authorized-side-effects","title":"Authorized side effects","prerequisites":["M05"]},
+    {"id":"M07","directory":"M07-recovery-reconciliation","title":"Recovery and reconciliation","prerequisites":["M06"]},
+    {"id":"M08","directory":"M08-time-human-ownership","title":"Time and human ownership","prerequisites":["M07"]},
+    {"id":"M09","directory":"M09-responsible-operations","title":"Responsible operations","prerequisites":["M08"]},
+    {"id":"M10","directory":"M10-capstone","title":"Capstone","prerequisites":["M09"]}
+  ]
+}

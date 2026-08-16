@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "curriculumVersion": 1,
+  "currentMilestone": "M00",
+  "starterRevision": null,
+  "referenceRevision": null,
+  "milestones": {
+    "M00": {"status":"available","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
+    "M01": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
+    "M02": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
+    "M03": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
+    "M04": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
+    "M05": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
+    "M06": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
+    "M07": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
+    "M08": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
+    "M09": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
+    "M10": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null}
+  }
+}
