@@ -7,7 +7,7 @@ $expected = @{
   M00 = @{
     Prerequisites = @(); Estimate = 5
     Evidence = @('git-worktree-safety','repository-map','orchestration-state-boundary','synthetic-local-boundary')
-    Required = @('Git/worktree safety','synthetic-local success is not production proof','Make no implementation changes')
+    Required = @('Git working-tree safety','synthetic-local success is not production proof','Make no implementation changes')
     Stages = @(
       @{ Name = 'Prediction'; Terms = @('Durable state') },
       @{ Name = 'Branch identity'; Terms = @('Branch') },
@@ -175,7 +175,16 @@ foreach ($m in @($curriculum.milestones)[0..$lastIndex]) {
       Assert-Match $stageByName['Starter ancestry'] 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD' 'M00 checks exact starter ancestry'
       Assert-Match $stageByName['Starter ancestry'] 'starter-ancestry-exit=' 'M00 emits ancestry evidence'
       Assert-Match $stageByName['Starter ancestry'] '\$LASTEXITCODE' 'M00 captures objective ancestry exit status'
+      Assert-Match $stageByName['Starter ancestry'] '(?i)if\s*\(\s*\$ancestryExit\s+-ne\s+0\s*\)\s*\{\s*(?:throw\b|exit\s+[1-9]\d*)' 'M00 fails closed when starter ancestry is not proven'
       Assert-Match $stageByName['Clean state'] '(?m)^\*\*One action:\*\* Run `git status --short`\.$' 'M00 working-tree state is observable'
+      Assert-True (-not ($lesson -match '(?i)\bworktree\b')) 'M00 uses Working tree rather than the ambiguous worktree synonym'
+    }
+    if ($m.id -eq 'M05') {
+      $typedStages = @{ 'Sales Policy' = 'Sales Policy'; 'Model' = 'Model record'; 'Qualification' = 'Qualification' }
+      foreach ($typedStage in $typedStages.Keys) {
+        $typedRecord = [regex]::Escape($typedStages[$typedStage])
+        Assert-Match $stageByName[$typedStage] "(?mi)^\*\*One action:\*\* [^\r\n]*\btyped validation\b[^\r\n]*\b$typedRecord\b[^\r\n]*before acceptance\.$" "M05 $typedStage action requires typed validation of its record"
+      }
     }
   }
 

@@ -61,7 +61,7 @@ M04 is the immediate prerequisite. The tutor reveals only Stage 1 initially. Do 
 **New terms:**
 - **Sales Policy:** an approved versioned record of synthetic sales rules.
 
-**One action:** Make one change that validates Sales Policy before acceptance.
+**One action:** Make one change that applies typed validation to Sales Policy before acceptance.
 
 **Wait:** Stop and inspect the diff before discussing configuration evidence.
 
@@ -72,7 +72,7 @@ M04 is the immediate prerequisite. The tutor reveals only Stage 1 initially. Do 
 **New terms:**
 - **Model record:** typed evidence naming the synthetic decision configuration.
 
-**One action:** Make one change that validates the Model record before acceptance.
+**One action:** Make one change that applies typed validation to the Model record before acceptance.
 
 **Wait:** Stop and inspect the diff before discussing the next rule record.
 
@@ -83,7 +83,7 @@ M04 is the immediate prerequisite. The tutor reveals only Stage 1 initially. Do 
 **New terms:**
 - **Qualification:** typed evidence of the synthetic turn's rule outcome.
 
-**One action:** Make one change that validates Qualification before acceptance.
+**One action:** Make one change that applies typed validation to Qualification before acceptance.
 
 **Wait:** Stop and inspect the diff before discussing source evidence.
 

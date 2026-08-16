@@ -51,7 +51,7 @@ The tutor reveals only Stage 1 at the start of a session. Do not reveal a later 
 
 **One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }`.
 
-**Wait:** Stop and inspect the printed `starter-ancestry-exit=0` result before checking the worktree.
+**Wait:** Stop and inspect the printed `starter-ancestry-exit=0` result before reviewing pending file changes.
 
 ### Stage 4 — Clean state
 
@@ -91,7 +91,7 @@ The tutor reveals only Stage 1 at the start of a session. Do not reveal a later 
 ## Constraints
 
 - Use the learner branch descended from `starter/salesflow-guided-v1`; do not use the completed reference as a baseline.
-- Git/worktree safety requires the expected branch, a successful starter ancestry check, and a reviewed working tree.
+- Git working-tree safety requires the expected branch, a successful starter ancestry check, and a reviewed working tree.
 - Use synthetic local examples only; never add credentials or customer data.
 - Do not write SQL, configure retries, or investigate LLM behavior here.
 - Make no implementation changes while M00 orientation and safety evidence are incomplete.
