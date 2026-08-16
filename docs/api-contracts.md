@@ -5,19 +5,20 @@ These are **synthetic-local/test interfaces**, not production Meta or CRM contra
 | Method | n8n path | Purpose | Minimum body |
 | --- | --- | --- | --- |
 | POST | `salesflow/inbound` | Normalize and persist inbound customer text | `account_ref`, `provider_id`, `contact_ref`, `body`; optional `received_at` |
+| POST | `salesflow/test/whatsapp-intake` | Local-only WhatsApp-shaped staging intake; `x-hub-signature-256` HMAC required | WhatsApp-shaped text envelope; generated test identities only |
 | POST | `salesflow/dispatch` | Test entry to outbox claim/dispatch | `work_id`; optional `account_ref` |
 | POST | `salesflow/status` | Reconcile provider status | `account_ref`, `event_id`, `provider_id`, `status`, `provider_time` |
 | POST | `salesflow/followups` | Authenticated test trigger for scheduler logic | No business body required |
 | POST | `salesflow/handoff` | Test entry to Handoff claim/dispatch | `work_id`; optional `account_ref` |
 | POST | `salesflow/operations` | Account-bound operator command | Action-specific object |
 
-The source workflow set also contains the ingress path above, so there are six distinct webhook paths; the seventh runtime entry is the UTC Schedule Trigger.
+There are seven distinct local webhook paths; the eighth runtime entry is the UTC Schedule Trigger.
 
 ## Inbound behavior
 
 `salesflow.ingest` authenticates the runtime actor, enforces account scope, validates required strings/timestamps/size, normalizes configured signals, deduplicates by provider ID and payload hash, allocates a monotonic Conversation sequence, and returns a typed result. Only a newly created accepted event starts the orchestrator.
 
-For the signed Meta protocol route, supported text messages are processed independently of unsupported sibling changes in the same envelope. A mixed envelope therefore retains every valid text message, while an envelope containing no supported text is acknowledged without creating business work.
+The signed test WhatsApp intake is localhost-only and uses generated test credentials; it has no live Meta/WhatsApp account or public registration. It verifies raw-byte HMAC, stages supported text messages without starting orchestration or other downstream work, and atomically rejects malformed, oversized, or identity-invalid envelopes. Supported text messages are processed independently of unsupported sibling changes in a valid envelope; an envelope containing no supported text is acknowledged without creating business work.
 
 A delivery addressed to a retired Contact Identifier is terminal: it creates no message or downstream work, records minimized rejection evidence, and returns HTTP `410` so the provider is not instructed to retry a permanently non-resolvable reference.
 

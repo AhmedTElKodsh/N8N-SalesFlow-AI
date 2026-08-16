@@ -23,13 +23,13 @@ powershell -ExecutionPolicy Bypass -File .\tests\run.ps1
 
 For a manual lifecycle, copy `.env.example` to ignored `.env`, fill every blank secret, start PostgreSQL, apply the migration with the owner role, then start n8n. See the root [README](../README.md) for exact commands.
 
-## Meta-compatible local protocol proof
+## Test-only WhatsApp-shaped intake
 
-The `salesflow/meta` GET and POST routes are a generated-credential protocol check only. Set the blank `META_ACCOUNT_REF`, `META_WABA_ID`, `META_PHONE_NUMBER_ID`, `META_VERIFY_TOKEN`, and `META_RUNTIME_TOKEN` values in ignored environment input, and create the `SalesFlow Meta HMAC` n8n Crypto credential with the App Secret. The exported workflow contains credential references and environment expressions, never secret values.
+The sole practice intake is `POST /webhook/salesflow/test/whatsapp-intake`. It accepts WhatsApp-shaped fixtures only on the localhost-bound n8n service; it has no real WhatsApp account, Meta app, verification route, callback registration, or public exposure. Set the blank `TEST_WHATSAPP_ACCOUNT_REF`, `TEST_WHATSAPP_WABA_ID`, `TEST_WHATSAPP_PHONE_NUMBER_ID`, and `TEST_WHATSAPP_RUNTIME_TOKEN` values in ignored environment input. The test harness generates these values and the `SalesFlow Test WhatsApp HMAC` credential for each run. The exported workflow contains credential references and environment expressions, never secret values.
 
 Pinned n8n `2.30.4` rejects syntactically invalid `application/json` with `422` before Workflow 01 executes, so that platform rejection has no PostgreSQL audit. Signed JSON that reaches the workflow but fails schema validation returns `400` and writes the minimized rejection audit.
 
-The POST route accepts text-only envelopes up to 256 KiB, verifies the original-byte HMAC, validates the whole envelope, and commits the batch atomically without invoking orchestration, outbound delivery, Follow-Up, or Handoff. Rejections retain only an allowlisted reason and opaque correlation value. n8n execution payload persistence remains disabled.
+The POST route accepts text-only envelopes up to 256 KiB, verifies the original-byte HMAC, validates the whole envelope, and commits the batch atomically without invoking orchestration, outbound delivery, Follow-Up, or Handoff. Rejections retain only an allowlisted reason and opaque correlation value. n8n execution payload persistence remains disabled. This is synthetic local proof, not evidence of a real WhatsApp integration.
 
 Passing the local harness does not prove a Meta connection. Public HTTPS, webhook subscription, customer-owned credentials/assets, permissions, supported Graph API version, callback identity, duplicate/out-of-order delivery, and test/production isolation remain approval-gated external evidence.
 

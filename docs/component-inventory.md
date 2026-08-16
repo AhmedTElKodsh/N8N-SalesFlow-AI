@@ -4,7 +4,7 @@
 
 | File | Workflow ID | Nodes | Trigger/role | Downstream behavior |
 | --- | --- | ---: | --- | --- |
-| `01-whatsapp-ingress.json` | `salesflow-wf-01` | 17 | GET/POST `salesflow/meta` and POST `salesflow/inbound` | Signed Meta protocol proof plus atomic ingest; valid text survives unsupported sibling events. |
+| `01-whatsapp-ingress.json` | `salesflow-wf-01` | 15 | POST `salesflow/test/whatsapp-intake` and POST `salesflow/inbound` | Test-only WhatsApp-shaped protocol proof plus atomic staging ingest; valid text survives unsupported sibling events. |
 | `02-conversation-orchestrator.json` | `salesflow-wf-02` | 7 | Execute Workflow | Completes one turn and invokes workflow 03 or 06. |
 | `03-outbox-dispatcher.json` | `salesflow-wf-03` | 9 | Execute Workflow or POST `salesflow/dispatch` | Claim, authorize, recheck, synthetic send, finish. |
 | `04-whatsapp-status.json` | `salesflow-wf-04` | 3 | POST `salesflow/status` | Account-bound, idempotent, monotonic provider status with explicit HTTP outcomes. |
