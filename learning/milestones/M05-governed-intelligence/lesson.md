@@ -35,13 +35,31 @@ At each stage, begin the teaching exchange with one mental model and at most thr
 
 **Wait:** Stop and inspect the location before asking for a change.
 
-### Stage 3 — Validation
+### Stage 3 — Knowledge and policy
 
-**One action:** Make one change that validates one required typed evidence record before a synthetic decision is accepted.
+**One action:** Make one change that validates typed Product Knowledge and Sales Policy before acceptance.
 
-**Wait:** Stop and inspect the diff before discussing any other record or terminal.
+**Wait:** Stop and inspect the diff before discussing model or qualification.
 
-### Stage 4 — Evidence
+### Stage 4 — Model and qualification
+
+**One action:** Make one change that validates the typed model and qualification records before acceptance.
+
+**Wait:** Stop and inspect the diff before discussing provenance.
+
+### Stage 5 — Provenance
+
+**One action:** Make one change that validates provenance against the selected synthetic Product Knowledge record and version.
+
+**Wait:** Stop and inspect the diff before discussing the fallback terminal.
+
+### Stage 6 — Handoff
+
+**One action:** Make one change that routes invalid evidence to Handoff.
+
+**Wait:** Stop and inspect the diff before running the focused check.
+
+### Stage 7 — Evidence
 
 **One action:** Run the M05 focused check with one fully valid fixture and one invalid-evidence fixture.
 

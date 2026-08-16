@@ -35,13 +35,25 @@ At each stage, begin the teaching exchange with one mental model and at most thr
 
 **Wait:** Stop and inspect the location before asking for a schema change.
 
-### Stage 3 — One relationship
+### Stage 3 — Account scope
 
 **One action:** Make one change that gives a persisted relationship its account scope.
 
-**Wait:** Stop and inspect the working diff before asking about another record type.
+**Wait:** Stop and inspect the working diff before asking about foreign-key records.
 
-### Stage 4 — Evidence
+### Stage 4 — Foreign-key records
+
+**One action:** Make one change that persists the next required record through a foreign-key relationship.
+
+**Wait:** Stop and inspect the diff before discussing immutable evidence.
+
+### Stage 5 — Immutable evidence
+
+**One action:** Make one change that prevents normal persistence from replacing stored inbound evidence.
+
+**Wait:** Stop and inspect the diff before running the focused check.
+
+### Stage 6 — Evidence
 
 **One action:** Run the M03 focused check after records persist and the inbound evidence cannot be changed through the normal update path.
 

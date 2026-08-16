@@ -29,19 +29,31 @@ At each stage, begin the teaching exchange with one mental model and at most thr
 
 **Wait:** Stop and wait for that prediction; inspect it before discussing files or commands.
 
-### Stage 2 — Branch safety
+### Stage 2 — Branch identity
 
-**One action:** Run `git status --short` on the learner branch.
+**One action:** Run `git branch --show-current`.
 
-**Wait:** Stop and inspect the output to confirm Git/worktree safety and starter lineage before mapping anything.
+**Wait:** Stop and confirm the reported branch is the learner branch before checking its ancestry.
 
-### Stage 3 — Map
+### Stage 3 — Starter ancestry
+
+**One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD`.
+
+**Wait:** Stop and inspect its exit result before checking the worktree.
+
+### Stage 4 — Clean state
+
+**One action:** Run `git status --short`.
+
+**Wait:** Stop and inspect the output before mapping anything; preserve any learner work rather than changing it.
+
+### Stage 5 — Map
 
 **One action:** Name the repository entry point for one synthetic inbound event.
 
 **Wait:** Stop and inspect the named location before asking for the n8n or database boundary.
 
-### Stage 4 — Boundaries
+### Stage 6 — Boundaries
 
 **One action:** State which component coordinates the event and which component owns its durable fact.
 
@@ -50,8 +62,10 @@ At each stage, begin the teaching exchange with one mental model and at most thr
 ## Constraints
 
 - Use the learner branch descended from `starter/salesflow-guided-v1`; do not use the completed reference as a baseline.
+- Git/worktree safety requires the expected branch, successful starter ancestry check, and reviewed working-tree state.
 - Use synthetic local examples only; never add credentials or customer data.
 - Do not write SQL, configure retries, or investigate LLM behavior here.
+- Make no implementation changes while M00 orientation and safety evidence are incomplete.
 - A synthetic-local check is useful evidence, not production proof: production credentials, customer data, and external-provider behavior remain outside it.
 
 ## Check

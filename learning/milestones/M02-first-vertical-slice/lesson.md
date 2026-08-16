@@ -35,13 +35,25 @@ At each stage, begin the teaching exchange with one mental model and at most thr
 
 **Wait:** Stop and inspect the location before asking for a change.
 
-### Stage 3 — One boundary
+### Stage 3 — Parameter binding
 
 **One action:** Make one change that binds the synthetic request value as a parameter.
 
-**Wait:** Stop and inspect the working diff before discussing the terminal response or transaction boundary.
+**Wait:** Stop and inspect the working diff before discussing the transaction boundary.
 
-### Stage 4 — Terminal evidence
+### Stage 4 — Transaction boundary
+
+**One action:** Make one change that keeps the database command and accepted result in the same transaction boundary.
+
+**Wait:** Stop and inspect the diff before discussing terminal fields.
+
+### Stage 5 — Typed terminal
+
+**One action:** Make one change that returns the `accepted` Boolean and `eventId` string terminal fields.
+
+**Wait:** Stop and inspect the diff before asking for checkpoint evidence.
+
+### Stage 6 — Terminal evidence
 
 **One action:** Run the focused M02 check after the terminal emits `accepted` and `eventId` with the stated types.
 

@@ -4,12 +4,12 @@ $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $curriculum = Get-Content -Raw "$root/learning/curriculum.yaml" | ConvertFrom-Json
 $lastIndex = [int]$Through.Substring(1)
 $expected = @{
-  M00 = @{ Prerequisites = @(); Estimate = 5; Evidence = @('git-worktree-safety','repository-map','orchestration-state-boundary','synthetic-local-boundary'); Required = @('Git/worktree safety','synthetic-local success is not production proof') }
+  M00 = @{ Prerequisites = @(); Estimate = 5; Evidence = @('git-worktree-safety','repository-map','orchestration-state-boundary','synthetic-local-boundary'); Required = @('Git/worktree safety','synthetic-local success is not production proof','git branch --show-current','git merge-base --is-ancestor','Make no implementation changes') ; Stages = @('Prediction','Branch identity','Starter ancestry','Clean state','Map','Boundaries') }
   M01 = @{ Prerequisites = @('M00'); Estimate = 15; Evidence = @('postgres-health','n8n-health','local-services'); Required = @() }
-  M02 = @{ Prerequisites = @('M01'); Estimate = 20; Evidence = @('webhook-path','parameterized-query','typed-terminal-accepted'); Required = @('`accepted`: a Boolean','`eventId`: a string') }
-  M03 = @{ Prerequisites = @('M02'); Estimate = 20; Evidence = @('composite-account-scope','foreign-key-records','immutable-inbound-evidence'); Required = @('composite account scope') }
-  M04 = @{ Prerequisites = @('M03'); Estimate = 30; Evidence = @('ordered-inbound-events','exactly-one-durable-effect','deterministic-replay-or-conflict'); Required = @('exactly one durable logical effect') }
-  M05 = @{ Prerequisites = @('M04'); Estimate = 30; Evidence = @('typed-knowledge-policy-model-qualification','validated-provenance','invalid-evidence-handoff'); Required = @('typed validation','model','qualification') }
+  M02 = @{ Prerequisites = @('M01'); Estimate = 20; Evidence = @('webhook-path','parameterized-query','typed-terminal'); Required = @('`accepted`: a Boolean','`eventId`: a string'); Stages = @('Prediction','Entry point','Parameter binding','Transaction boundary','Typed terminal','Terminal evidence') }
+  M03 = @{ Prerequisites = @('M02'); Estimate = 20; Evidence = @('composite-account-scope','foreign-key-records','immutable-inbound-evidence'); Required = @('composite account scope'); Stages = @('Prediction','Schema location','Account scope','Foreign-key records','Immutable evidence','Evidence') }
+  M04 = @{ Prerequisites = @('M03'); Estimate = 30; Evidence = @('ordered-inbound-events','exactly-one-durable-effect','deterministic-replay-or-conflict'); Required = @('exactly one durable logical effect'); Stages = @('Prediction','Boundary','One effect','Replay result','Typed conflict','Ordering','Race evidence') }
+  M05 = @{ Prerequisites = @('M04'); Estimate = 30; Evidence = @('typed-knowledge-policy-model-qualification','validated-provenance','invalid-evidence-handoff'); Required = @('typed validation','model','qualification'); Stages = @('Prediction','Boundary','Knowledge and policy','Model and qualification','Provenance','Handoff','Evidence') }
 }
 foreach ($m in @($curriculum.milestones)[0..$lastIndex]) {
   $dir = Join-Path $root "learning/milestones/$($m.directory)"
@@ -44,6 +44,7 @@ foreach ($m in @($curriculum.milestones)[0..$lastIndex]) {
       Assert-Equal ([regex]::Matches($stage.Value, '\*\*One action:\*\*')).Count 1 "$($m.id) stage has one learner action"
       Assert-Equal ([regex]::Matches($stage.Value, '\*\*Wait:\*\*')).Count 1 "$($m.id) stage waits for evidence"
     }
+    foreach ($stageName in $expected[$m.id].Stages) { Assert-Match $lesson "(?m)^### Stage \d+ .*$([regex]::Escape($stageName))$" "$($m.id) has $stageName stage" }
     foreach ($required in $expected[$m.id].Required) { Assert-Match $lesson ([regex]::Escape($required)) "$($m.id) states required curriculum boundary" }
   }
   if (Test-Path "$dir/hints.md") {

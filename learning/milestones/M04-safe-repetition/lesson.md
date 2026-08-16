@@ -35,13 +35,31 @@ At each stage, begin the teaching exchange with one mental model and at most thr
 
 **Wait:** Stop and inspect the location before asking for a change.
 
-### Stage 3 — One invariant
+### Stage 3 — One effect
 
 **One action:** Make one change that enforces exactly one durable logical effect for the stable event identity.
 
-**Wait:** Stop and inspect the diff before discussing race evidence.
+**Wait:** Stop and inspect the diff before discussing replay results.
 
-### Stage 4 — Race evidence
+### Stage 4 — Replay result
+
+**One action:** Make one change that returns the deterministic replay result for the same event identity and payload.
+
+**Wait:** Stop and inspect the diff before discussing conflicting payloads.
+
+### Stage 5 — Typed conflict
+
+**One action:** Make one change that returns a typed conflict for the same identity with a different payload.
+
+**Wait:** Stop and inspect the diff before discussing ordering.
+
+### Stage 6 — Ordering
+
+**One action:** Make one change that preserves observable inbound-event ordering.
+
+**Wait:** Stop and inspect the diff before running a race check.
+
+### Stage 7 — Race evidence
 
 **One action:** Run the focused M04 race check with duplicate and concurrent synthetic deliveries.
 
