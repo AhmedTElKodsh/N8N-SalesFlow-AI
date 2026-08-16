@@ -46,7 +46,7 @@ flowchart LR
 
 ## Data architecture
 
-The schema contains 19 tables grouped around account/configuration, Contact/Conversation state, work and provider evidence, and operations/release records. Composite `(account_ref, id)` ownership keys prevent cross-account joins. Unique provider IDs, sequence numbers, logical action keys, callback event IDs, and release pointers make replays deterministic.
+The schema contains 20 tables grouped around account/configuration, stable Customer/Contact identity, Conversation state, work and provider evidence, and operations/release records. Phone and provider references live in UUID-backed `contact_identifiers`, where explicit replacement retires the old reference without changing the Contact or Conversation UUID. Composite `(account_ref, id)` ownership keys prevent cross-account joins. PostgreSQL-owned Conversation sequences, unique provider IDs, logical action keys, callback event IDs, and release pointers make replays deterministic even when provider timestamps arrive out of order.
 
 See [data-models.md](./data-models.md).
 

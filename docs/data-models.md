@@ -1,6 +1,6 @@
 # PostgreSQL Data Models
 
-The `salesflow` schema contains 19 tables. Composite account keys are intentional: business records are scoped by `account_ref`, and runtime actors cannot cross that boundary.
+The `salesflow` schema contains 20 tables. Composite account keys are intentional: business records are scoped by `account_ref`, and runtime actors cannot cross that boundary.
 
 ## Account and configuration
 
@@ -15,7 +15,8 @@ The `salesflow` schema contains 19 tables. Composite account keys are intentiona
 
 | Table | Purpose |
 | --- | --- |
-| `contacts` | Internal Contact ID and channel reference |
+| `contacts` | Stable internal Customer record, named Contact in the canonical database vocabulary |
+| `contact_identifiers` | UUID-backed channel/provider references linked to a Contact; retired references remain non-resolvable history |
 | `consent_events` | Append-only granted/revoked evidence |
 | `conversations` | Contact-owned lifecycle, automation owner, version, sequence, campaign state |
 | `inbound_messages` | Provider-deduplicated inbound evidence and monotonic sequence |
@@ -43,18 +44,19 @@ The `salesflow` schema contains 19 tables. Composite account keys are intentiona
 
 ## Critical constraints
 
+- A retained SHA-256 identity fingerprint with unique `(account_ref, channel, provider, external_ref_hash)` prevents a current, retired, or plaintext-minimized Contact Identifier from ever mapping ambiguously to another Customer. This is pseudonymous retained identity evidence, not anonymization; its purpose is reuse rejection and ambiguity prevention after plaintext minimization.
 - Unique `(account_ref, provider_id)` prevents duplicate inbound and outbound provider identities.
-- Unique `(account_ref, conversation_id, seq)` enforces Conversation ordering.
+- PostgreSQL assigns each inbound message a positive sequence while locking its Conversation; unique `(account_ref, conversation_id, seq)` and immutable order keys enforce canonical durable-intake order independently of provider timestamps.
 - Unique `(account_ref, conversation_id, source_id, kind)` enforces one logical outbound action.
 - Unique `(account_ref, source_id)` enforces one Handoff for an inbound source.
 - Composite foreign keys preserve account ownership across Contact, Conversation, intent, Follow-Up, Handoff, and evidence rows.
 - Callback status is monotonic; claims/leases must match and remain unexpired at finish time.
-- Conversation lifecycle/owner and turn, intent, provider, Follow-Up, Handoff, deletion, and target states are constrained to the documented vocabulary at the database boundary.
+- Conversation lifecycle and ownership are orthogonal. The constrained `ai|human` storage values mean AI-Owned and Human-Owned; turn, intent, provider, Follow-Up, Handoff, deletion, and target states use their own constrained vocabularies.
 - Authentication succeeds only for an unrevoked token whose expiry is still in the future; token history can be retained while use is disabled.
 - Configuration content and identity are immutable. Only the activation command may change `active`, and every save or effective activation records its actor and database time.
 - `release_pointers`, not a flag on immutable release history, is the only source for the currently active release.
-- Audit and provider evidence are append-only, with a narrow deletion-mode exception that minimizes identifiers without rewriting the event identity/status/timestamp.
+- Contact deletion tracks and minimizes active and retired Contact Identifiers as well as message/provider evidence. Audit and provider evidence remain append-only, with a narrow deletion-mode exception that minimizes identifiers without rewriting event identity/status/timestamp.
 
 ## Migration strategy
 
-`database/001-initial.sql` creates roles, schema objects, triggers, functions, revocations, and runtime function grants. The canonical harness substitutes disposable role passwords and applies the migration twice to prove idempotence before n8n starts.
+`database/001-initial.sql` creates roles, schema objects, triggers, functions, revocations, and runtime function grants in one transaction. The canonical harness substitutes disposable role passwords, proves legacy upgrade preservation and rollback on injected failure, and applies the migration twice before n8n starts.

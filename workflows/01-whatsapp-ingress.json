@@ -340,7 +340,7 @@
       },
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH x AS (SELECT salesflow.ingest_meta($1,$2::jsonb) result) SELECT result,CASE WHEN result->>'accepted'='true' THEN 200 WHEN result->>'reason'='idempotency_conflict' THEN 409 ELSE 500 END status_code,CASE WHEN result->>'accepted'='true' THEN 'Accepted' WHEN result->>'reason'='idempotency_conflict' THEN 'Conflict' ELSE 'Retry' END response_body FROM x",
+        "query": "WITH x AS (SELECT salesflow.ingest_meta($1,$2::jsonb) result) SELECT result,CASE WHEN result->>'accepted'='true' THEN 200 WHEN result->>'reason'='idempotency_conflict' THEN 409 WHEN result->>'reason'='identifier_retired' THEN 410 ELSE 500 END status_code,CASE WHEN result->>'accepted'='true' THEN 'Accepted' WHEN result->>'reason'='idempotency_conflict' THEN 'Conflict' WHEN result->>'reason'='identifier_retired' THEN 'Gone' ELSE 'Retry' END response_body FROM x",
         "options": {
           "queryReplacement": "={{ [$json.runtime_token, JSON.stringify($json.payload)] }}"
         }

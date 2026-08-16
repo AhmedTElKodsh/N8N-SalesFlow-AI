@@ -36,7 +36,7 @@
       },
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH x AS (SELECT salesflow.operations($1,NULL,$2::jsonb) result) SELECT result,CASE WHEN result->>'ok'='true' THEN 200 WHEN result->>'reason' IN('wrong_account','unauthorized') THEN 403 WHEN result->>'reason'='not_found' THEN 404 WHEN result->>'reason' IN('stale_active_version','version_immutable','release_exists') THEN 409 WHEN result->>'reason'='busy' THEN 503 WHEN result->>'reason' IN('invalid_input','invalid_action','invalid_config','incompatible_config','manifest_mismatch') THEN 400 ELSE 500 END status_code FROM x",
+        "query": "WITH x AS (SELECT salesflow.operations($1,NULL,$2::jsonb) result) SELECT result,CASE WHEN result->>'ok'='true' THEN 200 WHEN result->>'reason' IN('wrong_account','unauthorized') THEN 403 WHEN result->>'reason'='not_found' THEN 404 WHEN result->>'reason' IN('stale_active_version','version_immutable','release_exists','identifier_conflict') THEN 409 WHEN result->>'reason'='busy' THEN 503 WHEN result->>'reason' IN('invalid_input','invalid_action','invalid_config','incompatible_config','manifest_mismatch') THEN 400 ELSE 500 END status_code FROM x",
         "options": {
           "queryReplacement": "={{ [$json.headers['x-salesflow-token'] || '', JSON.stringify($json.body || {})] }}"
         }

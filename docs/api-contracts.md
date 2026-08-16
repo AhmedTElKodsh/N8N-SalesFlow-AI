@@ -19,6 +19,8 @@ The source workflow set also contains the ingress path above, so there are six d
 
 For the signed Meta protocol route, supported text messages are processed independently of unsupported sibling changes in the same envelope. A mixed envelope therefore retains every valid text message, while an envelope containing no supported text is acknowledged without creating business work.
 
+A delivery addressed to a retired Contact Identifier is terminal: it creates no message or downstream work, records minimized rejection evidence, and returns HTTP `410` so the provider is not instructed to retry a permanently non-resolvable reference.
+
 ## Provider status
 
 Allowed statuses are `accepted`, `sent`, `delivered`, `read`, and `failed`. The callback must bind to an existing account/provider ID. Duplicate event IDs with a different payload are rejected, and older/lower-ranked events cannot regress the persisted status.
@@ -31,6 +33,7 @@ The live webhook maps accepted and idempotent callbacks to HTTP `200`, malformed
 | --- | --- | --- |
 | `evidence` | `action` | Counts audit evidence and returns retention/release references. |
 | `delete` | `action`, `contact_id` | Creates target records, minimizes live customer data, and records completion. |
+| `contact_identifier_replace` | `action`, `contact_id`, `channel`, `provider`, `old_ref`, `new_ref` | Atomically retires the active old reference and links the unused new reference to the same Contact; ownership conflicts return HTTP `409`. |
 | `release` | `action`, `release_id`, `manifest`, `manifest_hash` | Activates an immutable release only when the reviewed manifest binding matches. |
 | `config_save` | `action`, `document` | Strictly validates and saves one immutable inactive version, recording the saving actor. |
 | `config_activate` | `action`, `kind`, `version`, `expected_active_version` | Activates or rolls back to one compatible saved version and records the approving actor. |
