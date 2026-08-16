@@ -2,42 +2,66 @@
 
 ## Outcome
 
-PostgreSQL and n8n health checks pass on your machine using a local, synthetic-only stack.
+PostgreSQL and n8n health checks pass locally using a synthetic-only stack.
 
 ## Why now
 
-A small healthy stack gives later work a dependable place to run, without asking you to design workflows or data models yet.
+A small healthy stack gives later work a dependable place to run, without designing workflows or schema yet.
 
 ## Mental model
 
-Containers are labeled local boxes: each service has one job, and the health check is the box’s ready signal.
+Containers are labeled local boxes: each service has one job, and a health check is its ready signal.
 
 ## New terms
 
 - **Container:** an isolated local process package.
 - **Service:** a container’s named responsibility.
-- **Volume:** storage that survives a container restart.
+- **Health check:** a readiness signal from a service.
 
 ## Your task
 
-From the M01 starter configuration, start the two local services with PowerShell and Docker, then capture the health output for PostgreSQL and n8n. Before you run the command, predict which result would show that the database is ready. Stop after the health evidence and share it for review.
+M00 is the immediate prerequisite. The tutor reveals only Stage 1 initially. Do not reveal a later stage until the learner supplies evidence from this stage.
+At each stage, begin the teaching exchange with one mental model and at most three new terms.
+
+### Stage 1 — Prediction
+
+**One action:** State what result you predict would prove PostgreSQL is ready for later work.
+
+**Wait:** Stop and inspect the prediction before selecting a local command.
+
+### Stage 2 — Start
+
+**One action:** Start the named local stack using the project’s documented PowerShell and Docker command.
+
+**Wait:** Stop and inspect the command output before requesting any health evidence.
+
+### Stage 3 — PostgreSQL evidence
+
+**One action:** Collect the PostgreSQL health result.
+
+**Wait:** Stop and classify an unhealthy result before looking at n8n.
+
+### Stage 4 — n8n evidence
+
+**One action:** Collect the n8n health result.
+
+**Wait:** Stop and inspect it before running the focused checkpoint.
 
 ## Constraints
 
-- M00 must be complete before beginning.
 - Use PowerShell and Docker only; do not add a runtime dependency.
 - Use local synthetic settings only; no production credentials or data.
-- Do not implement workflow logic or schema design in this milestone.
+- Do not implement workflow logic or schema design.
 - Do not remove containers or volumes unless an explicit project-scoped reset is requested.
 
 ## Check
 
-Run the M01 focused checkpoint once both services report healthy. It verifies the smallest local stack behavior.
+Run the M01 focused checkpoint only after both reviewed health results pass.
 
 ## Explain
 
-Explain the startup flow, why each service is separate, and one failure mode a health check can reveal before you build on the stack.
+Explain the startup flow, why the services are separate, and one failure mode a health check reveals before implementation begins.
 
 ## Transfer
 
-Suppose n8n is running but PostgreSQL is not ready. Describe the next observation you would collect and why, without changing workflow logic.
+If n8n is running but PostgreSQL is not ready, name the next observation you would collect and why, without changing workflow logic.

@@ -2,42 +2,66 @@
 
 ## Outcome
 
-Synthetic account-scoped contacts, conversations, and inbound messages persist with foreign-key relationships.
+Synthetic account-scoped contacts, conversations, and inbound messages persist through migrations with primary keys, foreign keys, composite account scope, and immutable inbound evidence.
 
 ## Why now
 
-The first slice proved one path. Now the database needs enough identity structure to keep related facts from different accounts separate.
+The first slice proved one path. Now the database needs identity structure that keeps related facts from different accounts separate.
 
 ## Mental model
 
-Think of the database as linked index cards: each card has its own identity and a reference to the card it belongs with.
+The database is a set of linked index cards: each card has an identity and checked links to the cards it belongs with.
 
 ## New terms
 
 - **Primary key:** a stable identity for one record.
 - **Foreign key:** a checked reference to another record.
-- **Tenant scope:** the account boundary for a record.
+- **Composite account scope:** a record identity or relationship that includes its account boundary.
 
 ## Your task
 
-Add the next migration and persist one synthetic inbound message through its account, contact, and conversation relationships. Before changing the schema, predict which relationship prevents a message from belonging to an account that does not exist. Make one schema-or-path change, then stop and share the focused evidence for review.
+M02 is the immediate prerequisite. The tutor reveals only Stage 1 initially. Do not reveal a later stage until the learner supplies evidence from this stage.
+At each stage, begin the teaching exchange with one mental model and at most three new terms.
+
+### Stage 1 — Prediction
+
+**One action:** State which relationship should reject a conversation whose account does not exist.
+
+**Wait:** Stop and inspect the prediction before discussing the migration.
+
+### Stage 2 — Schema location
+
+**One action:** Identify the next migration location on the learner branch.
+
+**Wait:** Stop and inspect the location before asking for a schema change.
+
+### Stage 3 — One relationship
+
+**One action:** Make one change that gives a persisted relationship its account scope.
+
+**Wait:** Stop and inspect the working diff before asking about another record type.
+
+### Stage 4 — Evidence
+
+**One action:** Run the M03 focused check after records persist and the inbound evidence cannot be changed through the normal update path.
+
+**Wait:** Stop and inspect the result before advancing.
 
 ## Constraints
 
-- M02 must be complete.
 - Keep every example synthetic and local.
-- Preserve immutable inbound evidence after it is stored.
-- Scope contacts, conversations, and messages to an account.
-- Do not implement replay races, leases, or later delivery behavior.
+- Account, contact, conversation, and inbound message links must retain composite account scope.
+- Preserve immutable inbound evidence: after storage, the normal persistence path must not replace its received content or identity.
+- Do not implement replay races, leases, or delivery behavior.
 
 ## Check
 
-Run the M03 focused checkpoint after the related records persist. It verifies account scope, foreign-key relationships, and immutable inbound evidence.
+The M03 focused checkpoint verifies composite account scope, foreign-key records, and immutable inbound evidence.
 
 ## Explain
 
-Explain the persistence flow, why one relationship uses a foreign key, and one failure mode that account scope prevents.
+Explain the persistence flow, why a relationship uses a foreign key, and one failure that composite account scope prevents.
 
 ## Transfer
 
-Given a second synthetic account with a similar contact identifier, explain how your structure keeps its conversation separate from the first account’s conversation.
+Given a second synthetic account with the same contact reference, explain how the composite account scope keeps its conversation separate.

@@ -2,7 +2,7 @@
   "id": "M00",
   "prerequisites": [],
   "testScript": "tests/learning/checkpoints/Test-M00.ps1",
-  "behaviorEvidence": ["repository-map", "orchestration-boundary", "durable-state-boundary"],
+  "behaviorEvidence": ["git-worktree-safety", "repository-map", "orchestration-state-boundary", "synthetic-local-boundary"],
   "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
   "estimatedSeconds": 5
 }

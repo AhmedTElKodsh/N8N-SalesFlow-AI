@@ -2,7 +2,7 @@
   "id": "M02",
   "prerequisites": ["M01"],
   "testScript": "tests/learning/checkpoints/Test-M02.ps1",
-  "behaviorEvidence": ["webhook-path", "parameterized-query", "typed-terminal"],
+  "behaviorEvidence": ["webhook-path", "parameterized-query", "typed-terminal-accepted"],
   "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
   "estimatedSeconds": 20
 }

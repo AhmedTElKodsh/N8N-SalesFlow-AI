@@ -2,7 +2,7 @@
   "id": "M04",
   "prerequisites": ["M03"],
   "testScript": "tests/learning/checkpoints/Test-M04.ps1",
-  "behaviorEvidence": ["replay-handling", "concurrent-one-logical-action", "typed-conflict"],
+  "behaviorEvidence": ["ordered-inbound-events", "exactly-one-durable-effect", "deterministic-replay-or-conflict"],
   "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
   "estimatedSeconds": 30
 }

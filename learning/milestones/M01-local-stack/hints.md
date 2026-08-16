@@ -22,6 +22,6 @@ Use this command-shaped outline and fill it from local documentation:
 
 ```text
 PowerShell: [start local stack command]
-observe: [PostgreSQL health signal]
-observe: [n8n health signal]
+observe: [PostgreSQL health signal: ____]
+observe: [n8n health signal: ____]
 ```

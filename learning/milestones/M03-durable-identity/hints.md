@@ -21,7 +21,7 @@ Model the account as the scope, connect contact and conversation within that sco
 Use an incomplete relationship sketch:
 
 ```text
-[account] <- [contact scoped by ____]
-[account] <- [conversation scoped by ____]
-[conversation] <- [inbound evidence: ____]
+[account: ____] <- [contact scoped by ____]
+[account: ____] <- [conversation scoped by ____]
+[conversation: ____] <- [inbound evidence: ____]
 ```

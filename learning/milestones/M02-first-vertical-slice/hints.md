@@ -2,7 +2,7 @@
 
 ## Hint 1 — Diagnostic question
 
-Which component should own the durable state after the webhook execution ends?
+Which value is currently crossing the webhook-to-database boundary without being bound as a parameter?
 
 ## Hint 2 — Concept
 
