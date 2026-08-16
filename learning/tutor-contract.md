@@ -30,13 +30,13 @@ The curriculum proceeds only through these milestones, in order:
 
 - **M00 — Repository orientation:** map the project; establish Git/worktree safety; distinguish n8n orchestration from PostgreSQL state ownership; explain the synthetic-local versus production boundary.
 - **M01 — Smallest local stack:** start PostgreSQL and n8n safely, introducing containers, services, ports, environment variables, health checks, volumes, and cleanup only as needed for a healthy local state.
-- **M02 — First vertical slice:** build the smallest inbound-to-terminal synthetic flow.
-- **M03 — Identity and state:** establish account, contact, conversation, and durable state boundaries.
-- **M04 — Authorization and consent:** enforce authorized access and consent before side effects.
-- **M05 — Idempotency and ordering:** protect against replay, conflict, and ordering errors.
-- **M06 — Governed decisions:** make decisions deterministic, bounded, and reviewable.
-- **M07 — Reliable dispatch:** add durable dispatch, retries, and terminal evidence.
-- **M08 — Recovery and scheduling:** recover work and schedule follow-up safely.
+- **M02 — First vertical slice:** build a webhook-to-database-to-typed-response path. Introduce n8n triggers, nodes, expressions, query parameters, transactions, and typed terminals through one working behavior.
+- **M03 — Durable identity:** add accounts, contacts, conversations, inbound messages, and migrations. Introduce primary keys, composite account scope, foreign keys, and immutable inbound evidence.
+- **M04 — Safe repetition:** handle replay, conflict, ordering, and concurrent messages. Introduce uniqueness, idempotency, serialization, deterministic conflicts, and focused race tests.
+- **M05 — Governed intelligence:** add typed Product Knowledge, Sales Policy, model, qualification, provenance, synthetic turn decisions, and fail-closed Handoff. Explicitly distinguish deterministic fixtures from real LLM behavior.
+- **M06 — Authorized side effects:** add consent, persisted outbound intent, claim, immediate authorization recheck, adapter execution, and finish. Introduce the transactional outbox, leases, remote idempotency keys, and the remote-success/local-persistence-failure ambiguity.
+- **M07 — Recovery and reconciliation:** add bounded retry, backoff, provider callbacks, monotonic status, expired-claim recovery, ambiguous outcomes, and reconciliation evidence.
+- **M08 — Time and human ownership:** add UTC Follow-Ups, service windows, templates, opt-out precedence, Human-Owned lockout, Handoff dispatch, and scheduler recovery.
 - **M09 — Responsible operations:** add correlation and evidence, deletion and minimization, enforceable retention, secret boundaries, release identity, rollback behavior, and operational alert requirements.
 - **M10 — Capstone:** run the complete suite, trace a scenario from inbound event to terminal evidence, explain critical failure modes, and identify every external production gate the synthetic implementation cannot prove.
 
