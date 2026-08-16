@@ -2,7 +2,7 @@
 
 ## Outcome
 
-For each stable synthetic inbound-event identity, duplicate and concurrent deliveries create exactly one durable logical effect and preserve ordered inbound events. A later attempt returns a deterministic replay result for the same payload, or a typed conflict for a different payload; neither creates another effect.
+Repeated and simultaneous deliveries of one synthetic inbound event leave one lasting change and preserve arrival order. A later attempt receives a predictable non-writing response based on whether its payload matches the first attempt.
 
 ## Why now
 
@@ -10,60 +10,93 @@ Networks can repeat requests and two requests can arrive together. The system ne
 
 ## Mental model
 
-One ticket admits one entry: multiple scanners may see it, but the gate records one admission and gives every later scan a defined result.
+Each stage contains exactly one mental model for that teaching exchange.
 
 ## New terms
 
-- **Idempotency:** repeating the same request has one logical effect.
-- **Uniqueness:** a rule that rejects a duplicate identity.
-- **Serialization:** arranging concurrent work into a safe order.
+New terms are defined in the stage that first uses them.
 
 ## Your task
 
 M03 is the immediate prerequisite. The tutor reveals only Stage 1 initially. Do not reveal a later stage until the learner supplies evidence from this stage.
-At each stage, begin the teaching exchange with one mental model and at most three new terms.
 
 ### Stage 1 — Prediction
 
-**One action:** State the stable identity you predict can distinguish the same inbound event from a different one.
+**Mental model:** A ticket number distinguishes a repeated scan from a different ticket.
 
-**Wait:** Stop and inspect the prediction before locating the durable boundary.
+**New terms:**
+- **Event identity:** a stable value that distinguishes one inbound event from another.
+
+**One action:** State the event identity you predict can distinguish a repeated inbound event from a different one.
+
+**Wait:** Stop and inspect the prediction before locating the persistence boundary.
 
 ### Stage 2 — Boundary
 
-**One action:** Identify the M03 persistence boundary where one durable logical effect can be enforced.
+**Mental model:** A turnstile is the single boundary where one admission can be counted.
+
+**New terms:**
+- **Durable effect:** the lasting state change caused by an accepted event.
+
+**One action:** Identify the M03 persistence boundary where one durable effect can be enforced.
 
 **Wait:** Stop and inspect the location before asking for a change.
 
 ### Stage 3 — One effect
 
-**One action:** Make one change that enforces exactly one durable logical effect for the stable event identity.
+**Mental model:** One ticket admits one entry because the gate enforces one unique ticket number.
 
-**Wait:** Stop and inspect the diff before discussing replay results.
+**New terms:**
+- **Idempotency:** repeated processing of the same request produces one logical effect.
+- **Uniqueness:** a rule that allows only one stored instance of an identity.
+
+**One action:** Make one change that combines idempotency with uniqueness to enforce exactly one durable logical effect.
+
+**Wait:** Stop and inspect the diff before discussing repeat responses.
 
 ### Stage 4 — Replay result
 
-**One action:** Make one change that returns the deterministic replay result for the same event identity and payload.
+**Mental model:** A second scan of the same ticket receives the original receipt instead of another admission.
 
-**Wait:** Stop and inspect the diff before discussing conflicting payloads.
+**New terms:**
+- **Replay result:** the deterministic response returned for the same identity and payload after the first effect.
+
+**One action:** Make one change that returns the replay result for the same event identity and payload.
+
+**Wait:** Stop and inspect the diff before discussing a changed payload.
 
 ### Stage 5 — Typed conflict
 
+**Mental model:** A ticket number presented with different details is rejected with a named reason.
+
+**New terms:**
+- **Typed conflict:** a response with a defined shape for one identity paired with different content.
+
 **One action:** Make one change that returns a typed conflict for the same identity with a different payload.
 
-**Wait:** Stop and inspect the diff before discussing ordering.
+**Wait:** Stop and inspect the diff before discussing event order.
 
 ### Stage 6 — Ordering
 
-**One action:** Make one change that preserves observable inbound-event ordering.
+**Mental model:** A single-file gate turns simultaneous arrivals into an observable sequence.
 
-**Wait:** Stop and inspect the diff before running a race check.
+**New terms:**
+- **Serialization:** arranging concurrent work into a safe order.
+
+**One action:** Make one change that uses serialization to preserve observable inbound-event ordering.
+
+**Wait:** Stop and inspect the diff before requesting concurrent evidence.
 
 ### Stage 7 — Race evidence
 
-**One action:** Run the focused M04 race check with duplicate and concurrent synthetic deliveries.
+**Mental model:** A controlled simultaneous start tests the gate rather than trusting sequential examples.
 
-**Wait:** Stop and inspect whether it proves one effect, ordered events, and deterministic replay-or-conflict results.
+**New terms:**
+- **Race check:** a focused test that overlaps competing operations.
+
+**One action:** Run the focused M04 race check.
+
+**Wait:** Stop and inspect whether the result proves one effect, ordered events, and deterministic replay-or-conflict responses.
 
 ## Constraints
 

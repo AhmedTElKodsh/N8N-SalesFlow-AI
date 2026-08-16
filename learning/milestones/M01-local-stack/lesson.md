@@ -2,7 +2,7 @@
 
 ## Outcome
 
-PostgreSQL and n8n health checks pass locally using a synthetic-only stack.
+PostgreSQL and n8n readiness checks pass locally using a synthetic-only stack.
 
 ## Why now
 
@@ -10,42 +10,59 @@ A small healthy stack gives later work a dependable place to run, without design
 
 ## Mental model
 
-Containers are labeled local boxes: each service has one job, and a health check is its ready signal.
+Each stage contains exactly one mental model for that teaching exchange.
 
 ## New terms
 
-- **Container:** an isolated local process package.
-- **Service:** a container’s named responsibility.
-- **Health check:** a readiness signal from a service.
+New terms are defined in the stage that first uses them.
 
 ## Your task
 
 M00 is the immediate prerequisite. The tutor reveals only Stage 1 initially. Do not reveal a later stage until the learner supplies evidence from this stage.
-At each stage, begin the teaching exchange with one mental model and at most three new terms.
 
 ### Stage 1 — Prediction
 
-**One action:** State what result you predict would prove PostgreSQL is ready for later work.
+**Mental model:** A ready light answers one narrow question before anyone uses the machine.
+
+**New terms:**
+- **Health check:** a focused readiness signal from a running component.
+
+**One action:** State what health check result you predict would prove PostgreSQL is ready for later work.
 
 **Wait:** Stop and inspect the prediction before selecting a local command.
 
 ### Stage 2 — Start
 
-**One action:** Start the named local stack using the project’s documented PowerShell and Docker command.
+**Mental model:** Each container is a labeled room, each service is the job performed there, and a volume is its project-owned cupboard.
 
-**Wait:** Stop and inspect the command output before requesting any health evidence.
+**New terms:**
+- **Container:** an isolated local process package.
+- **Service:** a container's named responsibility.
+- **Volume:** project-scoped storage that can outlive a container process.
+
+**One action:** Start the documented local container services with the project's PowerShell and Docker command while retaining the project volume.
+
+**Wait:** Stop and inspect the startup output before requesting health evidence.
 
 ### Stage 3 — PostgreSQL evidence
 
-**One action:** Collect the PostgreSQL health result.
+**Mental model:** Check one instrument before depending on the whole panel.
+
+**New terms:** None.
+
+**One action:** Collect the PostgreSQL health check result.
 
 **Wait:** Stop and classify an unhealthy result before looking at n8n.
 
 ### Stage 4 — n8n evidence
 
-**One action:** Collect the n8n health result.
+**Mental model:** A second ready light must be checked independently of the first.
 
-**Wait:** Stop and inspect it before running the focused checkpoint.
+**New terms:** None.
+
+**One action:** Collect the n8n health check result.
+
+**Wait:** Stop and inspect the result before running the focused checkpoint.
 
 ## Constraints
 

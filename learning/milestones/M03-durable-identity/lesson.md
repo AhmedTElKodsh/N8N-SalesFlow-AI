@@ -2,82 +2,118 @@
 
 ## Outcome
 
-Synthetic account-scoped contacts, conversations, and inbound messages persist through migrations with primary keys, foreign keys, composite account scope, and immutable inbound evidence.
+Four related synthetic record types persist through a versioned database change, retain their ownership boundary, reject invalid relationships, and preserve the original received evidence.
 
 ## Why now
 
-The first slice proved one path. Now the database needs identity structure that keeps related facts from different accounts separate.
+The first slice proved one path. Now the database needs identity structure that keeps related facts from different owners separate.
 
 ## Mental model
 
-The database is a set of linked index cards: each card has an identity and checked links to the cards it belongs with.
+Each stage contains exactly one mental model for that teaching exchange.
 
 ## New terms
 
-- **Primary key:** a stable identity for one record.
-- **Foreign key:** a checked reference to another record.
-- **Composite account scope:** a record identity or relationship that includes its account boundary.
+New terms are defined in the stage that first uses them.
 
 ## Your task
 
 M02 is the immediate prerequisite. The tutor reveals only Stage 1 initially. Do not reveal a later stage until the learner supplies evidence from this stage.
-At each stage, begin the teaching exchange with one mental model and at most three new terms.
 
 ### Stage 1 — Prediction
 
-**One action:** State which relationship should reject a conversation whose account does not exist.
+**Mental model:** A checked link refuses to point at a parent card that does not exist.
 
-**Wait:** Stop and inspect the prediction before discussing the migration.
+**New terms:**
+- **Foreign key:** a database rule requiring a referenced parent record to exist.
+
+**One action:** State which foreign key behavior should reject a child record whose parent record does not exist.
+
+**Wait:** Stop and inspect the prediction before discussing schema files.
 
 ### Stage 2 — Schema location
 
-**One action:** Identify the next migration location on the learner branch.
+**Mental model:** A numbered change log tells the database where its next structural step belongs.
 
-**Wait:** Stop and inspect the location before asking for a schema change.
+**New terms:**
+- **Migration:** a versioned artifact that changes database structure in a repeatable order.
 
-### Stage 3 — Account
+**One action:** Identify the location for the next migration on the learner branch.
 
-**Mental model:** The account is the outer folder for every later record.
+**Wait:** Stop and inspect the location before asking for a new artifact.
 
-**One action:** Make one change that persists the account record.
+### Stage 3 — Migration
 
-**Wait:** Stop and inspect the working diff before asking about a contact.
+**Mental model:** An empty numbered form establishes one reviewable place for the next structural changes.
 
-### Stage 4 — Contact
+**New terms:** None.
 
-**Mental model:** A contact belongs inside one account folder.
+**One action:** Create one new migration artifact at the reviewed location.
 
-**One action:** Make one change that persists an account-scoped contact record.
+**Wait:** Stop and inspect the new migration diff before defining any record.
 
-**Wait:** Stop and inspect the diff before asking about a conversation.
+### Stage 4 — Account
 
-### Stage 5 — Conversation
+**Mental model:** An account is an outer folder with its own stable label.
 
-**Mental model:** A conversation links related messages.
+**New terms:**
+- **Account:** the outer ownership record for the related synthetic data.
+- **Primary key:** a stable identity for one record.
 
-**One action:** Make one change that persists a conversation through its required foreign key.
+**One action:** Make one change in the migration that defines the account record with its primary key.
 
-**Wait:** Stop and inspect the diff before asking about an inbound message.
+**Wait:** Stop and inspect the diff before defining the next child record.
 
-### Stage 6 — Inbound message
+### Stage 5 — Contact
 
-**Mental model:** An inbound message is evidence attached to its conversation.
+**Mental model:** A contact card belongs inside one account folder, even when another folder uses the same local label.
 
-**One action:** Make one change that persists an inbound message through its required foreign key.
+**New terms:**
+- **Contact:** an account-owned record for one synthetic person or endpoint.
+- **Composite account scope:** an identity or relationship that includes its account boundary.
 
-**Wait:** Stop and inspect the diff before discussing immutability.
+**One action:** Make one change that defines the contact record with composite account scope.
 
-### Stage 7 — Immutable evidence
+**Wait:** Stop and inspect the diff before defining the grouping record.
 
-**Mental model:** Evidence should not be rewritten after it is recorded.
+### Stage 6 — Conversation
 
-**One action:** Make one change that prevents normal persistence from replacing stored inbound evidence.
+**Mental model:** A conversation is a thread filed under both its contact and its account.
+
+**New terms:**
+- **Conversation:** an account-owned record grouping related messages.
+
+**One action:** Make one change that defines the conversation record with its required foreign key and account scope.
+
+**Wait:** Stop and inspect the diff before defining the received-event record.
+
+### Stage 7 — Inbound message
+
+**Mental model:** An inbound message is one received card attached to the correct conversation thread.
+
+**New terms:**
+- **Inbound message:** the persisted evidence of one received event.
+
+**One action:** Make one change that defines the inbound message record with its required foreign key and account scope.
+
+**Wait:** Stop and inspect the diff before discussing evidence preservation.
+
+### Stage 8 — Immutable evidence
+
+**Mental model:** A received evidence card may be referenced later but not rewritten as if different content arrived.
+
+**New terms:**
+- **Immutable inbound evidence:** received identity and content that the normal persistence path cannot replace after storage.
+
+**One action:** Make one change that prevents normal persistence from replacing immutable inbound evidence.
 
 **Wait:** Stop and inspect the diff before running the focused check.
 
-### Stage 8 — Evidence
+### Stage 9 — Evidence
 
-**Mental model:** A focused check is evidence about one milestone boundary.
+**Mental model:** A focused check is a receipt for the complete identity chain.
+
+**New terms:** None.
 
 **One action:** Run the M03 focused check.
 
@@ -87,12 +123,12 @@ At each stage, begin the teaching exchange with one mental model and at most thr
 
 - Keep every example synthetic and local.
 - Account, contact, conversation, and inbound message links must retain composite account scope.
-- Preserve immutable inbound evidence: after storage, the normal persistence path must not replace its received content or identity.
+- Preserve immutable inbound evidence: the normal persistence path must not replace its received content or identity after storage.
 - Do not implement replay races, leases, or delivery behavior.
 
 ## Check
 
-The M03 focused checkpoint verifies composite account scope, foreign-key records, and immutable inbound evidence.
+The M03 focused checkpoint verifies the migration, every required record, composite account scope, foreign-key relationships, and immutable inbound evidence.
 
 ## Explain
 
@@ -100,4 +136,4 @@ Explain the persistence flow, why a relationship uses a foreign key, and one fai
 
 ## Transfer
 
-Given a second synthetic account with the same contact reference, explain how the composite account scope keeps its conversation separate.
+Given a second synthetic account with the same contact reference, explain how the account boundary keeps its conversation separate.
