@@ -1,0 +1,8 @@
+{
+  "id": "M01",
+  "prerequisites": ["M00"],
+  "testScript": "tests/learning/checkpoints/Test-M01.ps1",
+  "behaviorEvidence": ["postgres-health", "n8n-health", "local-services"],
+  "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
+  "estimatedSeconds": 15
+}

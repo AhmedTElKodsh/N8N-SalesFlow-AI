@@ -1,0 +1,8 @@
+{
+  "id": "M05",
+  "prerequisites": ["M04"],
+  "testScript": "tests/learning/checkpoints/Test-M05.ps1",
+  "behaviorEvidence": ["typed-governance-evidence", "provenance-required", "fail-closed-handoff"],
+  "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
+  "estimatedSeconds": 30
+}

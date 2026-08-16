@@ -1,0 +1,8 @@
+{
+  "id": "M03",
+  "prerequisites": ["M02"],
+  "testScript": "tests/learning/checkpoints/Test-M03.ps1",
+  "behaviorEvidence": ["account-scope", "foreign-key-records", "immutable-inbound-evidence"],
+  "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
+  "estimatedSeconds": 20
+}

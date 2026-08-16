@@ -1,0 +1,8 @@
+{
+  "id": "M00",
+  "prerequisites": [],
+  "testScript": "tests/learning/checkpoints/Test-M00.ps1",
+  "behaviorEvidence": ["repository-map", "orchestration-boundary", "durable-state-boundary"],
+  "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
+  "estimatedSeconds": 5
+}

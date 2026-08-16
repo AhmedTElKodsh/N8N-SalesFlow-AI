@@ -1,0 +1,8 @@
+{
+  "id": "M04",
+  "prerequisites": ["M03"],
+  "testScript": "tests/learning/checkpoints/Test-M04.ps1",
+  "behaviorEvidence": ["replay-handling", "concurrent-one-logical-action", "typed-conflict"],
+  "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
+  "estimatedSeconds": 30
+}
