@@ -35,27 +35,51 @@ At each stage, begin the teaching exchange with one mental model and at most thr
 
 **Wait:** Stop and inspect the location before asking for a schema change.
 
-### Stage 3 — Account scope
+### Stage 3 — Account
 
-**One action:** Make one change that gives a persisted relationship its account scope.
+**Mental model:** The account is the outer folder for every later record.
 
-**Wait:** Stop and inspect the working diff before asking about foreign-key records.
+**One action:** Make one change that persists the account record.
 
-### Stage 4 — Foreign-key records
+**Wait:** Stop and inspect the working diff before asking about a contact.
 
-**One action:** Make one change that persists the next required record through a foreign-key relationship.
+### Stage 4 — Contact
 
-**Wait:** Stop and inspect the diff before discussing immutable evidence.
+**Mental model:** A contact belongs inside one account folder.
 
-### Stage 5 — Immutable evidence
+**One action:** Make one change that persists an account-scoped contact record.
+
+**Wait:** Stop and inspect the diff before asking about a conversation.
+
+### Stage 5 — Conversation
+
+**Mental model:** A conversation links related messages.
+
+**One action:** Make one change that persists a conversation through its required foreign key.
+
+**Wait:** Stop and inspect the diff before asking about an inbound message.
+
+### Stage 6 — Inbound message
+
+**Mental model:** An inbound message is evidence attached to its conversation.
+
+**One action:** Make one change that persists an inbound message through its required foreign key.
+
+**Wait:** Stop and inspect the diff before discussing immutability.
+
+### Stage 7 — Immutable evidence
+
+**Mental model:** Evidence should not be rewritten after it is recorded.
 
 **One action:** Make one change that prevents normal persistence from replacing stored inbound evidence.
 
 **Wait:** Stop and inspect the diff before running the focused check.
 
-### Stage 6 — Evidence
+### Stage 8 — Evidence
 
-**One action:** Run the M03 focused check after records persist and the inbound evidence cannot be changed through the normal update path.
+**Mental model:** A focused check is evidence about one milestone boundary.
+
+**One action:** Run the M03 focused check.
 
 **Wait:** Stop and inspect the result before advancing.
 

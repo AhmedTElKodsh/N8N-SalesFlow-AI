@@ -35,31 +35,57 @@ At each stage, begin the teaching exchange with one mental model and at most thr
 
 **Wait:** Stop and inspect the location before asking for a change.
 
-### Stage 3 — Knowledge and policy
+### Stage 3 — Product Knowledge
 
-**One action:** Make one change that validates typed Product Knowledge and Sales Policy before acceptance.
+**Mental model:** Knowledge is one approved record that can support a decision.
 
-**Wait:** Stop and inspect the diff before discussing model or qualification.
+**One action:** Make one change that validates typed Product Knowledge before acceptance.
 
-### Stage 4 — Model and qualification
+**Wait:** Stop and inspect the diff before discussing Sales Policy.
 
-**One action:** Make one change that validates the typed model and qualification records before acceptance.
+### Stage 4 — Sales Policy
+
+**Mental model:** Policy is one separate record that constrains a decision.
+
+**One action:** Make one change that validates typed Sales Policy before acceptance.
+
+**Wait:** Stop and inspect the diff before discussing the model.
+
+### Stage 5 — Model
+
+**Mental model:** The model record names the synthetic decision configuration.
+
+**One action:** Make one change that validates the typed model before acceptance.
+
+**Wait:** Stop and inspect the diff before discussing qualification.
+
+### Stage 6 — Qualification
+
+**Mental model:** Qualification is a separate rule record for the synthetic turn.
+
+**One action:** Make one change that validates typed qualification before acceptance.
 
 **Wait:** Stop and inspect the diff before discussing provenance.
 
-### Stage 5 — Provenance
+### Stage 7 — Provenance
+
+**Mental model:** Provenance links a decision to the knowledge record that supports it.
 
 **One action:** Make one change that validates provenance against the selected synthetic Product Knowledge record and version.
 
-**Wait:** Stop and inspect the diff before discussing the fallback terminal.
+**Wait:** Stop and inspect the diff before discussing Handoff.
 
-### Stage 6 — Handoff
+### Stage 8 — Handoff
+
+**Mental model:** Fail-closed sends unproven decisions to the safe terminal.
 
 **One action:** Make one change that routes invalid evidence to Handoff.
 
 **Wait:** Stop and inspect the diff before running the focused check.
 
-### Stage 7 — Evidence
+### Stage 9 — Evidence
+
+**Mental model:** A focused check shows whether the boundary accepts only valid evidence.
 
 **One action:** Run the M05 focused check with one fully valid fixture and one invalid-evidence fixture.
 

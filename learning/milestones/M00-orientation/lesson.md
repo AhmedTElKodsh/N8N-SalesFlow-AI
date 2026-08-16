@@ -37,9 +37,11 @@ At each stage, begin the teaching exchange with one mental model and at most thr
 
 ### Stage 3 — Starter ancestry
 
-**One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD`.
+**Mental model:** An ancestry check is a receipt: record its result so another person can review it.
 
-**Wait:** Stop and inspect its exit result before checking the worktree.
+**One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; Write-Output "starter-ancestry-exit=$LASTEXITCODE"`.
+
+**Wait:** Stop and inspect the printed `starter-ancestry-exit` evidence before checking the worktree.
 
 ### Stage 4 — Clean state
 
