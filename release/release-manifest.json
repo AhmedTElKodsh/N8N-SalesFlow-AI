@@ -25,7 +25,7 @@
     "07-error-and-operations.json"
   ],
   "activationManifest": {
-    "version": "release-v5",
+    "version": "release-v6",
     "policyVersion": "policy-v1",
     "knowledgeVersion": "knowledge-v1",
     "images": [
@@ -74,11 +74,11 @@
       "config/retention.json": "f408c01157c7865a8e110c35bcd3325091ec8dcd9ae5fb158d935112ebb7a463",
       "config/retry.json": "9b673d234bc49856b993429a70dd5e30e2d8cc9652a77aad88a8e76115ab11de",
       "config/sales-policy.json": "a08f74bca50d4768c0dc050d0128856c8c3417a4b4a4d65e7da520be953688f6",
-      "database/001-initial.sql": "a478482d96b283506330f3bc149de055dbed031c9bc7d630cbf74118b7046bc7",
+      "database/001-initial.sql": "799178c29779934e94bfde01f4e8e35fd3cfdd3d97cac5d67f019b4b65aa027c",
       "scripts/canonicalize-workflows.mjs": "4241a5dc0649b1e8e20a495c81c83b578ca97625c582b477cc30d38fd17e6000",
       "tests/pilot-scenarios.json": "af992bdcb26ffb2e7718baa97d3e090e2e0eba0f9c80f81b86e3b2ee83c0ff21",
-      "tests/run.ps1": "cc0c5f6dd5cde07f7e68b5042c79e0488dde4f0c5155c84443cc091753a18553",
-      "tests/runtime.sql": "0470fe5eab3d53e531168685971ca8b28a33c591e079f3863d3c26b694247d1c",
+      "tests/run.ps1": "0d6d13e6b1d6e47152db103a1afde8b6b2324aad5aa9ae40503b7eda7f4dc230",
+      "tests/runtime.sql": "ce259dd20d0b6978627aca1878715427e52c71051fb777b32c0d4a584a95a987",
       "workflows/01-whatsapp-ingress.json": "29c75d24ce6283f0b64d16fac20bf45877d92fb09223c7c62d965b449292f461",
       "workflows/02-conversation-orchestrator.json": "7138564b9d065b000ca681029b99ec50f378e91d51ba965c6693d40f238c7a04",
       "workflows/03-outbox-dispatcher.json": "c8ea9c297380eae0de6062ac43b0216625292df51097ec9e25b7a10519392062",
@@ -88,7 +88,7 @@
       "workflows/07-error-and-operations.json": "0c71de73e97c1757ecf36e7fe4215f67129923d6aee8b26e69da8ccace4f73b7"
     }
   },
-  "activationManifestSha256": "0e435353b9febae58a0a8bf5075060852c7d4d6b3e24528d6c66cb0bfe70d553",
+  "activationManifestSha256": "686697d7f8ce72762b8fa0768283278c9cd1d32e056d6e35decf93d4caa2a3d2",
   "workflowHashes": {
     "salesflow-wf-01": "006617e405f474c35d919c1d0f0dd6c4f05d9982e9d752dafa80b91353937039",
     "salesflow-wf-02": "32edab96a75d602cc03c2ebae990ef9351aa28cd95ca7791f18d5cb7f80aa112",
@@ -121,15 +121,15 @@
     "config/model.json": "3571099e2371f2f5c14f563d8c6ce603d9522ef9de8b66e7e2082649bc8a99b9",
     "config/product-knowledge.json": "993907729410bd15136b67392544215bf85a08b541847474ea39c33ab8f8e2ce",
     "config/qualification.json": "72bbaa1bd393a77159bad4921b0977a2a68afb5a374f37036207e5d173c1def2",
-    "config/release-set.json": "243f8d9bfc5bbfe34b135e2a8f022d77b2656c6cdc5bbf36c1c930b3b3519bcc",
+    "config/release-set.json": "32847f2a645bc56aaefaa98a31fa42ac563d1c7755f1fc0f1b4ecc7f31b66487",
     "config/retention.json": "f408c01157c7865a8e110c35bcd3325091ec8dcd9ae5fb158d935112ebb7a463",
     "config/retry.json": "9b673d234bc49856b993429a70dd5e30e2d8cc9652a77aad88a8e76115ab11de",
     "config/sales-policy.json": "a08f74bca50d4768c0dc050d0128856c8c3417a4b4a4d65e7da520be953688f6",
-    "database/001-initial.sql": "a478482d96b283506330f3bc149de055dbed031c9bc7d630cbf74118b7046bc7",
+    "database/001-initial.sql": "799178c29779934e94bfde01f4e8e35fd3cfdd3d97cac5d67f019b4b65aa027c",
     "scripts/canonicalize-workflows.mjs": "4241a5dc0649b1e8e20a495c81c83b578ca97625c582b477cc30d38fd17e6000",
     "tests/pilot-scenarios.json": "af992bdcb26ffb2e7718baa97d3e090e2e0eba0f9c80f81b86e3b2ee83c0ff21",
-    "tests/run.ps1": "cc0c5f6dd5cde07f7e68b5042c79e0488dde4f0c5155c84443cc091753a18553",
-    "tests/runtime.sql": "0470fe5eab3d53e531168685971ca8b28a33c591e079f3863d3c26b694247d1c",
+    "tests/run.ps1": "0d6d13e6b1d6e47152db103a1afde8b6b2324aad5aa9ae40503b7eda7f4dc230",
+    "tests/runtime.sql": "ce259dd20d0b6978627aca1878715427e52c71051fb777b32c0d4a584a95a987",
     "workflows/01-whatsapp-ingress.json": "29c75d24ce6283f0b64d16fac20bf45877d92fb09223c7c62d965b449292f461",
     "workflows/02-conversation-orchestrator.json": "7138564b9d065b000ca681029b99ec50f378e91d51ba965c6693d40f238c7a04",
     "workflows/03-outbox-dispatcher.json": "c8ea9c297380eae0de6062ac43b0216625292df51097ec9e25b7a10519392062",

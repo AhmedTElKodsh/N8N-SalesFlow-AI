@@ -16,11 +16,13 @@ There are seven distinct local webhook paths; the eighth runtime entry is the UT
 
 ## Inbound behavior
 
-`salesflow.ingest` authenticates the runtime actor, enforces account scope, validates required strings/timestamps/size, normalizes configured signals, deduplicates by provider ID and payload hash, allocates a monotonic Conversation sequence, and returns a typed result. Only a newly created accepted event starts the orchestrator.
+`salesflow.ingest` authenticates the runtime actor, enforces account scope, requires an object with string `account_ref`, `provider_id`, `contact_ref`, and `body` fields plus a string `received_at` when supplied, and rejects whitespace-only provider/sender identities. The raw 8,192-byte body limit is enforced before normalization. The original `body` and its SHA-256 hash are then stored as immutable evidence. `processing_body` is derived deterministically by Unicode NFC normalization, CRLF/CR-to-LF conversion, and outer-whitespace trimming only. Internal whitespace, line breaks, case, punctuation, and meaning are otherwise preserved; a message that is empty after this processing is rejected. Signal matching uses a separate lowercase, whitespace-collapsed comparison value and does not alter either stored form.
+
+Provider IDs are unique within an account. A replay is accepted as an idempotent retry only when its original sender and original body exactly match the first delivery; cleaned text is never used for equality. Reusing the provider ID with a different sender or body returns `idempotency_conflict`, preserves the first message, and appends minimized conflict evidence without sender or message text. PostgreSQL atomically creates one database-assigned Conversation sequence and one Turn with each new message. Only a committed result with `accepted=true` and `created=true` may start sequence-ordered orchestration; retries and conflicts create no Turn or downstream work.
 
 The signed test WhatsApp intake is localhost-only and uses generated test credentials; it has no live Meta/WhatsApp account or public registration. It verifies raw-byte HMAC, stages supported text messages without starting orchestration or other downstream work, and atomically rejects malformed, oversized, or identity-invalid envelopes. Supported text messages are processed independently of unsupported sibling changes in a valid envelope; an envelope containing no supported text is acknowledged without creating business work.
 
-A delivery addressed to a retired Contact Identifier is terminal: it creates no message or downstream work, records minimized rejection evidence, and returns HTTP `410` so the provider is not instructed to retry a permanently non-resolvable reference.
+A delivery addressed to a retired Contact Identifier is terminal: it creates no message or downstream work, records minimized rejection evidence, and returns HTTP `410` so the provider is not instructed to retry a permanently non-resolvable reference. Other authenticated validation rejections are also audited without sender or text.
 
 ## Provider status
 

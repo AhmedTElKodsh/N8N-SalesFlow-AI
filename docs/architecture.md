@@ -36,8 +36,8 @@ flowchart LR
 
 ## Workflow topology
 
-1. `01-whatsapp-ingress` calls `salesflow.ingest` and starts the orchestrator only for a new accepted event.
-2. `02-conversation-orchestrator` calls `salesflow.complete_turn`, then routes created work to the outbox or Handoff dispatcher.
+1. `01-whatsapp-ingress` calls `salesflow.ingest` and starts the orchestrator only after a committed `accepted=true, created=true` result. Its signed test WhatsApp route remains terminal staging and never starts orchestration.
+2. `02-conversation-orchestrator` calls `salesflow.complete_turn`, which claims committed Turns in database sequence and consumes the deterministic processing form, then routes created work to the outbox or Handoff dispatcher.
 3. `03-outbox-dispatcher` claims, authorizes, rechecks, runs the synthetic provider, and finishes the intent.
 4. `04-whatsapp-status` binds callbacks to an existing provider ID and preserves monotonic status.
 5. `05-follow-up-scheduler` runs in UTC, discovers all-account due/retry work, and invokes the proper dispatcher.
@@ -46,7 +46,7 @@ flowchart LR
 
 ## Data architecture
 
-The schema contains 20 tables grouped around account/configuration, stable Customer/Contact identity, Conversation state, work and provider evidence, and operations/release records. Phone and provider references live in UUID-backed `contact_identifiers`, where explicit replacement retires the old reference without changing the Contact or Conversation UUID. Composite `(account_ref, id)` ownership keys prevent cross-account joins. PostgreSQL-owned Conversation sequences, unique provider IDs, logical action keys, callback event IDs, and release pointers make replays deterministic even when provider timestamps arrive out of order.
+The schema contains 20 tables grouped around account/configuration, stable Customer/Contact identity, Conversation state, work and provider evidence, and operations/release records. Phone and provider references live in UUID-backed `contact_identifiers`, where explicit replacement retires the old reference without changing the Contact or Conversation UUID. Each inbound row retains immutable original text and a separately derived NFC/newline/outer-trim processing form. Composite `(account_ref, id)` ownership keys prevent cross-account joins. PostgreSQL-owned Conversation sequences, exact original-evidence retry checks, unique provider IDs, logical action keys, callback event IDs, and release pointers make replays deterministic even when provider timestamps arrive out of order.
 
 See [data-models.md](./data-models.md).
 
@@ -56,13 +56,13 @@ See [data-models.md](./data-models.md).
 - The workflow database role receives function execution, not direct table mutation.
 - Missing controls/configuration fail closed.
 - Claims and leases expire; retry budgets and backoff are configuration-driven.
-- Inbound replay conflicts, callback conflicts, and stale Conversation versions are rejected.
+- Inbound replay conflicts are durably flagged without sender or message text; callback conflicts and stale Conversation versions are rejected.
 - Audit/provider evidence is append-only except narrowly scoped deletion minimization.
 - n8n execution payload persistence is disabled; generated credentials are ignored and deleted in `finally`.
 
 ## Testing strategy
 
-`tests/run.ps1` combines static manifest checks, migration idempotence, SQL assertions, concurrent workers, n8n import/activation/publication, connected endpoint calls, export identity checks, and cleanup verification. The current evidence records `PASS FULL PASS` for S01-S26 and race checks.
+`tests/run.ps1` combines static manifest checks, migration idempotence, SQL assertions, concurrent workers, commit-visibility checks, n8n import/activation/publication, connected endpoint calls, export identity checks, and cleanup verification. SP2-T2 proof covers strict typed input, Unicode and formatting preservation, the processing-form invariant, normal intake, concurrent duplicate retry, sender/body conflict, decreasing and equal provider timestamps, database-sequence consumption, deletion minimization, and the absence of retry/conflict downstream work.
 
 ## Deployment architecture
 

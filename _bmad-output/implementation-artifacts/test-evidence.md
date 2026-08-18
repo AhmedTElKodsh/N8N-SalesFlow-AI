@@ -1,19 +1,20 @@
 # SalesFlow local test evidence
 
-Date: 2026-08-06
+Date: 2026-08-18
 Runtime: n8n 2.30.4 and PostgreSQL 17.10, both digest-pinned in `compose.yaml`
 Command: `powershell -ExecutionPolicy Bypass -File .\tests\run.ps1`
 
 ## Result
 
-The synthetic-local run was re-executed after the adversarial-review remediation and completed with `PASS FULL PASS` and exit code 0 in 175.1 seconds. The harness also reported that plaintext credentials and container volumes were removed.
+The synthetic-local run was re-executed after SP2-T2 implementation and final review patches and completed with `PASS FULL PASS` and exit code 0 in approximately 154 seconds. The harness also reported that plaintext credentials and container volumes were removed.
 
 Verified evidence includes:
 
-- migration idempotence and a least-privilege n8n database role;
+- clean and legacy migration idempotence, deterministic `processing_body` backfill, and a least-privilege n8n database role;
 - exact S01-S26 runtime assertions;
-- concurrent replay and sequence races with native worker exit checks;
-- strict integer/set configuration validation, audited immutable save/activation/rollback, bounded activation locking, incompatible-version rejection, account disablement, service-window policy, retry/lease recovery, deletion minimization, and single-active release rotation bound to release-v4;
+- SP2-T2 strict JSON/string and whitespace-identity validation, raw pre-normalization size enforcement, decomposed-Unicode NFC plus internal formatting preservation, the database processing-form invariant, empty-after-cleaning rejection, signal-only whitespace collapse, processing-form model consumption, exact duplicate and sender/body conflict decisions, decreasing/equal provider-time processing in database sequence, and deletion-safe message immutability;
+- commit visibility, concurrent duplicate/conflict, no-extra-Turn/work, and sequence races with native worker exit checks and minimized durable conflict audits;
+- strict integer/set configuration validation, audited immutable save/activation/rollback, bounded activation locking, incompatible-version rejection, account disablement, service-window policy, retry/lease recovery, deletion minimization of both inbound forms, and single-active release rotation bound to release-v6;
 - seven workflow imports, activations, publications, and real connected endpoint paths;
 - automatic ingress-to-orchestrator-to-dispatch and ingress-to-Handoff completion, mixed Meta-envelope text preservation, explicit callback/operations HTTP error classes, operator publication through Workflow 07, propagated database failures, concurrent callback collapse, actual UTC Schedule Trigger recovery of expired outbound/Handoff claims, final pre-adapter authorization checks, and account-bound operations terminals;
 - source versus imported/exported canonical workflow identity;
