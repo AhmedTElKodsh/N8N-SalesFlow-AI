@@ -36,7 +36,7 @@ The manifest rejects extra node types. `Set` is used only for deterministic synt
 | --- | --- |
 | Authentication/configuration | `actor_for`, `bootstrap`, `validate_config`, `save_config`, `activate_config`, `set_control` |
 | Consent/ingress | `set_consent`, `ingest` |
-| Turn processing | `complete_turn` |
+| Turn processing | `complete_turn` — claims ordered work; for AI replies, snapshots granted consent, both active business versions, and bounded inbound-history references before creating one intent |
 | Outbox | `authorization_reason`, `claim_dispatch`, `recheck_dispatch`, `finish_dispatch` |
 | Provider status | `callback` |
 | Follow-Up/recovery | `schedule_followups`, `schedule_work` |
@@ -52,6 +52,8 @@ The AI uses five separate business-information contracts. Every contract has the
 Saving and activation are separate operator actions exposed through the existing `salesflow/operations` endpoint; the workflow role receives no table access or direct grant to the private publication functions. Saving strictly validates and permanently stores a new dated inactive version, then records the saving actor and database time. Retrying an identical saved body is harmless. Activation is the approval action: it rechecks compatibility, makes the saved target live, and records the kind, target version, previous version, approving actor, and database time in the append-only audit log. Rollback uses the same activation action with an older compatible saved version, so no history is lost.
 
 Publication is serialized per account and kind with a bounded database lock. The caller supplies the active version it expects; if another approval wins first, the stale request is rejected, and lock contention returns a typed busy result instead of waiting indefinitely. `config_docs.active` may change only inside the activation command, so direct updates cannot bypass approval or audit.
+
+At response time, Product Knowledge and Sales Policy stay independently publishable. Response assembly takes their activation locks in deterministic order with a five-second bound, then selects the currently active rows together; contention restores the Turn and returns `busy`, and absence fails closed. The ephemeral drafting payload contains up to ten same-Conversation processing bodies within 32 KiB, skipping non-fitting predecessors while continuing to older candidates; an oversized current inbound is denied. The intent persists both versions and minimized references only. Its identity, source, versions, body, and provenance are immutable after creation except the controlled privacy-deletion body/provenance minimization.
 
 ### Product Knowledge (`product-knowledge.json`, kind `product_knowledge`)
 

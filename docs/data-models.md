@@ -26,7 +26,7 @@ The `salesflow` schema contains 20 tables. Composite account keys are intentiona
 
 | Table | Purpose |
 | --- | --- |
-| `intents` | Unique customer/Handoff acknowledgement actions, authorization versions, lease/retry/provider state |
+| `intents` | Unique customer/Handoff acknowledgement actions, authorization versions, minimized response-context provenance, lease/retry/provider state |
 | `intent_transitions` | Append-only intent state changes |
 | `provider_events` | Idempotent provider callback evidence |
 | `followups` | Durable UTC due jobs, claims, retries, and created intent reference |
@@ -51,12 +51,14 @@ The `salesflow` schema contains 20 tables. Composite account keys are intentiona
 - Unique `(account_ref, conversation_id, source_id, kind)` enforces one logical outbound action.
 - Unique `(account_ref, source_id)` enforces one Handoff for an inbound source.
 - Composite foreign keys preserve account ownership across Contact, Conversation, intent, Follow-Up, Handoff, and evidence rows.
+- Reply-intent provenance records the latest granted consent timestamp/status, active Product Knowledge and Sales Policy versions, source inbound ID, Conversation version, and bounded ordered inbound references. The history slice is restricted to the same account and Conversation, at or before the source sequence, with a ten-message and 32-KiB processing-text limit; non-fitting predecessors are skipped, and message text is used ephemerally but not duplicated into provenance. Intent identity, source, expected/business versions, body, and provenance cannot be updated or deleted ordinarily; controlled privacy deletion may replace only the body/provenance evidence with minimized values while operational delivery fields remain mutable.
+- Consent publication and response-context assembly share an account/Contact advisory lock. This makes the context snapshot linearizable with a concurrent grant or revocation while the independent pre-send gate still evaluates the latest state.
 - Callback status is monotonic; claims/leases must match and remain unexpired at finish time.
 - Conversation lifecycle and ownership are orthogonal. The constrained `ai|human` storage values mean AI-Owned and Human-Owned; turn, intent, provider, Follow-Up, Handoff, deletion, and target states use their own constrained vocabularies.
 - Authentication succeeds only for an unrevoked token whose expiry is still in the future; token history can be retained while use is disabled.
 - Configuration content and identity are immutable. Only the activation command may change `active`, and every save or effective activation records its actor and database time.
 - `release_pointers`, not a flag on immutable release history, is the only source for the currently active release.
-- Contact deletion tracks and minimizes active and retired Contact Identifiers as well as both inbound message forms and provider evidence. Audit and provider evidence remain append-only, with a narrow deletion-mode exception that minimizes identifiers without rewriting event identity/status/timestamp.
+- Contact deletion tracks and minimizes active and retired Contact Identifiers, both inbound message forms, intent bodies/provenance, and provider evidence. Audit and provider evidence remain append-only, with a narrow deletion-mode exception that minimizes customer data without rewriting event identity/status/timestamp.
 
 ## Migration strategy
 

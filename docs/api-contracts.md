@@ -24,6 +24,14 @@ The signed test WhatsApp intake is localhost-only and uses generated test creden
 
 A delivery addressed to a retired Contact Identifier is terminal: it creates no message or downstream work, records minimized rejection evidence, and returns HTTP `410` so the provider is not instructed to retry a permanently non-resolvable reference. Other authenticated validation rejections are also audited without sender or text.
 
+## Response-context behavior
+
+Before the synthetic AI path can create a reply intent, `salesflow.complete_turn` locks the account-scoped Conversation and serializes with consent changes for that Contact. The latest consent event must be `granted`; missing consent returns `consent_missing`, while a later revocation returns `consent_revoked`. Both suppress the Turn without creating a draft or intent. Handoff-only processing remains separate from AI drafting, and every eventual customer send still performs the existing fresh authorization check.
+
+Product Knowledge and Sales Policy activation and response-context assembly use the same account/kind advisory locks in deterministic order. Context assembly waits at most five seconds; contention returns `busy` and restores the Turn to an unclaimed pending state, while a successful wait reads the post-commit active rows. A missing row returns `missing_business_context` without falling back to an inactive version. Eligible reply intents retain their policy and knowledge versions plus a minimized `provenance.context` object containing the granted consent timestamp/status, source inbound ID, Conversation version, and ordered inbound message IDs/sequences. The bounded ephemeral drafting payload contains processing text, but persisted provenance contains references only.
+
+History is scoped to the same account and Conversation and never reads beyond the current inbound sequence. The current inbound message is always present; up to nine newest predecessors are added while the processing-text total remains at or below 32 KiB, then the selected references are presented in ascending database sequence. Provider timestamps do not control this order.
+
 ## Provider status
 
 Allowed statuses are `accepted`, `sent`, `delivered`, `read`, and `failed`. The callback must bind to an existing account/provider ID. Duplicate event IDs with a different payload are rejected, and older/lower-ranked events cannot regress the persisted status.
@@ -50,4 +58,4 @@ The orchestrator calls workflow 03 or 06 with the authenticated token, `account_
 
 ## Error model
 
-Commands return typed JSON containing fields such as `ok`, `terminal`, `reason`, `work_id`, and claim/lease identifiers. Expected validation, authorization, idempotency, conflict, and policy denials are normal terminal branches. Unexpected database failures remain workflow failures rather than being relabeled `invalid_input`. Representative reasons include `wrong_account`, `invalid`, `idempotency_conflict`, `consent_missing`, `global_stop`, `human_owned`, `stale_version`, `stale_active_version`, `busy`, `already_leased`, `claim_mismatch`, `retry_exhausted`, and `manifest_mismatch`.
+Commands return typed JSON containing fields such as `ok`, `terminal`, `reason`, `work_id`, and claim/lease identifiers. Expected validation, authorization, idempotency, conflict, and policy denials are normal terminal branches. Unexpected database failures remain workflow failures rather than being relabeled `invalid_input`. Representative reasons include `wrong_account`, `invalid`, `idempotency_conflict`, `consent_missing`, `consent_revoked`, `missing_business_context`, `context_too_large`, `global_stop`, `human_owned`, `stale_version`, `stale_active_version`, `busy`, `already_leased`, `claim_mismatch`, `retry_exhausted`, and `manifest_mismatch`.
