@@ -53,6 +53,13 @@ context:
 - [x] `tests/run.ps1` -- run the named five fixtures, time normal acknowledgement, and query rejection, duplicate, and arrival-order evidence.
 - [x] `docs/api-contracts.md`, `docs/deployment-guide.md`, `config/release-set.json`, `release/release-manifest.json` -- document the boundary and refresh only required hashes.
 
+### Review Findings
+
+- [x] [Review][Patch] Replace count-only malformed-request comparison with a content fingerprint including Contact Identifiers [tests/run.ps1:174]
+- [x] [Review][Patch] Scope SP2 provider-ID evidence queries explicitly to `test-account` [tests/run.ps1:166]
+- [x] [Review][Patch] Compare complete business state before and after oversized-envelope rejection [tests/run.ps1:180]
+- [x] [Review][Patch] Require the recovery message to own one terminal completed staging Turn [tests/run.ps1:180]
+
 **Acceptance Criteria:**
 - Given a warmed local runtime, when the normal fixture posts, then one terminal staged inbound record is acknowledged in less than one second with no customer-facing action.
 - Given rejection, duplicate, and reverse-timestamp fixtures, when evidence is queried, then no partial state exists, replays create one row, and sequence follows receipt order without changing timestamps.
