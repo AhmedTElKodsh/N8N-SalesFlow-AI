@@ -1,0 +1,25 @@
+# Release-manifest inputs are hashed byte-for-byte and must be stable on every OS.
+/.env.example text eol=lf
+/compose.yaml text eol=lf
+config/account.json text eol=lf
+config/consent-and-templates.json text eol=lf
+config/handoff.json text eol=lf
+config/model.json text eol=lf
+config/product-knowledge.json text eol=lf
+config/qualification.json text eol=lf
+config/release-set.json text eol=lf
+config/retention.json text eol=lf
+config/retry.json text eol=lf
+config/sales-policy.json text eol=lf
+database/001-initial.sql text eol=lf
+scripts/canonicalize-workflows.mjs text eol=lf
+tests/pilot-scenarios.json text eol=lf
+tests/run.ps1 text eol=lf
+tests/runtime.sql text eol=lf
+workflows/01-whatsapp-ingress.json text eol=lf
+workflows/02-conversation-orchestrator.json text eol=lf
+workflows/03-outbox-dispatcher.json text eol=lf
+workflows/04-whatsapp-status.json text eol=lf
+workflows/05-follow-up-scheduler.json text eol=lf
+workflows/06-handoff-dispatcher.json text eol=lf
+workflows/07-error-and-operations.json text eol=lf

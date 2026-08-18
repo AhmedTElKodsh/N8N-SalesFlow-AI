@@ -8,6 +8,15 @@ Set-Location $root
 function Pass($m){Write-Host "PASS $m"}
 function Assert($c,$m){if(!$c){throw $m};Pass $m}
 function Native($m){Assert ($LASTEXITCODE-eq0) "$m exit"}
+function JsonbText($value){
+  if($null -eq $value){return 'null'}
+  if($value -is [string]){return (ConvertTo-Json -InputObject $value -Compress)}
+  if($value -is [bool]){return $value.ToString().ToLowerInvariant()}
+  if($value -is [Collections.IEnumerable]){$items=@(foreach($item in $value){JsonbText $item});return '['+($items -join ', ')+']'}
+  $properties=@($value.psobject.Properties|Sort-Object @{Expression={[Text.Encoding]::UTF8.GetByteCount($_.Name)}},@{Expression={$_.Name}})
+  $pairs=@(foreach($property in $properties){$name=ConvertTo-Json -InputObject $property.Name -Compress;$serializedValue=JsonbText $property.Value;$name+': '+$serializedValue})
+  return '{'+($pairs -join ', ')+'}'
+}
 function HttpStatus($uri,$method,$headers,$body){try{$r=Invoke-WebRequest $uri -Method $method -Headers $headers -ContentType application/json -Body $body -UseBasicParsing;[int]$r.StatusCode}catch{if($_.Exception.Response){[int]$_.Exception.Response.StatusCode}else{throw}}}
 function ChunkedStatus($uri,$headers,$body){$r=[Net.HttpWebRequest]::Create($uri);$r.Method='POST';$r.ContentType='application/json';$r.SendChunked=$true;foreach($h in $headers.GetEnumerator()){$r.Headers.Add($h.Key,$h.Value)};$b=[Text.Encoding]::UTF8.GetBytes($body);$s=$r.GetRequestStream();try{$s.Write($b,0,$b.Length)}finally{$s.Dispose()};try{$x=$r.GetResponse();try{[int]$x.StatusCode}finally{$x.Dispose()}}catch [Net.WebException]{if($_.Exception.Response){$x=$_.Exception.Response;try{[int]$x.StatusCode}finally{$x.Dispose()}}else{throw}}}
 function MetaHeaders($body,$secret){$h=[Security.Cryptography.HMACSHA256]::new([Text.Encoding]::UTF8.GetBytes($secret));try{$digest=($h.ComputeHash([Text.Encoding]::UTF8.GetBytes($body))|% ToString x2)-join''}finally{$h.Dispose()};@{'x-hub-signature-256'="sha256=$digest"}}
@@ -35,7 +44,8 @@ try {
   Assert ((Compare-Object @($types|Sort-Object -Unique) @($manifest.nodeTypes)).Count-eq0) 'approved native nodes exact'
   $w5=Get-Content workflows/05-follow-up-scheduler.json -Raw;Assert ($w5-match'scheduleTrigger'-and$w5-match'schedule_work'-and$w5-match'salesflow-wf-03'-and$w5-match'salesflow-wf-06') 'UTC scheduler chains durable workers'
   Assert (-not((Get-Content workflows/03-outbox-dispatcher.json,workflows/06-handoff-dispatcher.json -Raw)-match'body\.outcome')) 'internal adapter outcomes'
-  foreach($p in $manifest.inputHashes.psobject.Properties){Assert ((Get-FileHash $p.Name -Algorithm SHA256).Hash.ToLower()-eq$p.Value) "manifest input $($p.Name)"}
+  $activationText=JsonbText $manifest.activationManifest;$sha=[Security.Cryptography.SHA256]::Create();try{$activationDigest=([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($activationText))).Replace('-','').ToLowerInvariant())}finally{$sha.Dispose()};Assert ($activationDigest-eq$manifest.activationManifestSha256) 'activation manifest digest'
+  foreach($p in $manifest.inputHashes.psobject.Properties){$attributes=@(git check-attr text eol -- $p.Name);Native "attribute lookup $($p.Name)";Assert ($attributes.Count-eq2-and$attributes[0]-match': text: set$'-and$attributes[1]-match': eol: lf$') "LF attribute $($p.Name)";Assert ((Get-FileHash $p.Name -Algorithm SHA256).Hash.ToLower()-eq$p.Value) "manifest input $($p.Name)"}
   $signatures=rg -o "CREATE OR REPLACE FUNCTION [^(]+\([^)]*\)" database/001-initial.sql;Native 'function signature scan';Assert (-not($signatures|Group-Object|Where-Object Count -gt 1)) 'one definition per public function signature'
   $ids=(Get-Content tests/pilot-scenarios.json -Raw|ConvertFrom-Json).scenarios;$sql=Get-Content tests/runtime.sql -Raw
   foreach($id in $ids){Assert ($sql-match"INSERT INTO evidence[^;]*\('$id'\)") "$id asserted before marker"}
