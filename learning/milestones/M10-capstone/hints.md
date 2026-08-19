@@ -6,7 +6,7 @@ Which local invariant does each failing check protect, and which evidence locati
 
 ## Hint 2 — Concept
 
-A complete synthetic run can prove reproducibility, internal state transitions, and local adapter behavior. It cannot prove external provider delivery, selected model behavior, Handoff integration, managed database controls, privacy approval, or production-owner approval.
+A complete synthetic run can prove reproducibility, internal state transitions, and local adapter behavior. It cannot prove provider delivery, selected model behavior, Handoff integration, managed database controls, approved Sales Policy content, approved Product Knowledge content, legal approval, privacy approval, commercial approval, external integration proof, pilot proof, or production-owner approval.
 
 ## Hint 3 — Location
 

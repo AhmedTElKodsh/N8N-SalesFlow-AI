@@ -82,6 +82,85 @@ function Get-OneActionPowerShellCommand([string]$StageBody) {
   return $actionMatches[0].Groups['Command'].Value
 }
 
+function Test-StageTeachingGrammar([string]$StageBody) {
+  if ([string]::IsNullOrWhiteSpace($StageBody)) {
+    return $false
+  }
+
+  $definitionLine = '- \*\*[^*:\r\n]+:\*\* \S[^\r\n]*'
+  $pattern = '(?s)\A\*\*Mental model:\*\* \S[^\r\n]*\r?\n\r?\n(?:' +
+    '\*\*New terms:\*\* None\.\r?\n\r?\n|' +
+    '\*\*New terms:\*\*\r?\n(?:' + $definitionLine + '\r?\n){1,3}\r?\n)' +
+    '\*\*One action:\*\* \S[^\r\n]*\r?\n\r?\n' +
+    '\*\*Wait:\*\* \S[^\r\n]*\z'
+  return $StageBody.Trim() -match $pattern
+}
+
+function Test-OneLearnerAction([string]$ActionLine) {
+  if ([string]::IsNullOrWhiteSpace($ActionLine)) {
+    return $false
+  }
+
+  $actionProse = $ActionLine -replace '`[^`]*`', '<command>'
+  $actionVerb = '(?:run|make|create|collect|identify|state|write|start|add|capture|share|explain|change|inspect|define|classify|trace|apply|record|verify|select|list|describe|implement|update|execute|test)'
+  $joinedAction = '(?i)(?:,\s*|\b(?:then|and|while)\s+(?:you\s+)?)' + $actionVerb + '\b'
+  $secondSentence = '(?i)\.\s+' + $actionVerb + '\b'
+  return -not (($actionProse -match ';') -or ($actionProse -match $joinedAction) -or ($actionProse -match $secondSentence))
+}
+
+$canonicalStageGrammar = @'
+**Mental model:** One card represents one teachable idea.
+
+**New terms:**
+- **Card:** a bounded unit used by this unrelated example.
+
+**One action:** Identify the Card in the example.
+
+**Wait:** Stop and inspect the result.
+'@
+Assert-True (Test-StageTeachingGrammar $canonicalStageGrammar) 'stage grammar accepts the canonical teaching shape'
+
+$alternateDefinitionGrammar = @'
+**Mental model:** One card represents one teachable idea.
+
+**New terms:**
+* **Card:** a bounded unit hidden behind an alternate bullet.
+
+**One action:** Identify the Card in the example.
+
+**Wait:** Stop and inspect the result.
+'@
+Assert-True (-not (Test-StageTeachingGrammar $alternateDefinitionGrammar)) 'stage grammar rejects alternate Markdown term definitions'
+
+$definitionListGrammar = @'
+**Mental model:** One card represents one teachable idea.
+
+**New terms:**
+Card
+: a bounded unit hidden in a Markdown definition list.
+
+**One action:** Identify the Card in the example.
+
+**Wait:** Stop and inspect the result.
+'@
+Assert-True (-not (Test-StageTeachingGrammar $definitionListGrammar)) 'stage grammar rejects Markdown definition-list terms'
+
+$proseDefinitionGrammar = @'
+**Mental model:** One card represents one teachable idea.
+
+**New terms:**
+Card means a bounded unit hidden in ordinary prose.
+
+**One action:** Identify the Card in the example.
+
+**Wait:** Stop and inspect the result.
+'@
+Assert-True (-not (Test-StageTeachingGrammar $proseDefinitionGrammar)) 'stage grammar rejects prose term definitions'
+Assert-True (-not (Test-OneLearnerAction '**One action:** Identify the boundary; write a second result.')) 'atomic action rejects semicolon-joined actions'
+Assert-True (-not (Test-OneLearnerAction '**One action:** Identify the boundary, write a second result.')) 'atomic action rejects comma-joined actions'
+Assert-True (-not (Test-OneLearnerAction '**One action:** Inspect the boundary while you record a second result.')) 'atomic action rejects while-joined actions'
+Assert-True (-not (Test-OneLearnerAction '**One action:** Identify the boundary. Write a second result.')) 'atomic action rejects a second imperative sentence'
+
 function Test-M00StarterAncestryCommand([string]$Command) {
   if ([string]::IsNullOrWhiteSpace($Command)) {
     return $false
@@ -351,8 +430,20 @@ $expected = @{
   }
   M10 = @{
     Prerequisites = @('M09'); Estimate = 240
-    Evidence = @('complete-release-harness','end-to-end-scenario-trace','failure-analysis-and-production-gates')
-    Required = @('complete release harness','Actual production promotion remains outside this synthetic capstone')
+    Evidence = @('complete-release-harness-exit-zero','complete-release-harness-full-pass-marker','complete-release-harness-cleanup-evidence','end-to-end-scenario-trace','failure-analysis-and-production-gates')
+    Required = @(
+      'complete release harness',
+      'A nonzero exit blocks M10 completion',
+      'a missing full-pass marker blocks M10 completion',
+      'missing cleanup evidence blocks M10 completion',
+      'approved Sales Policy content',
+      'approved Product Knowledge content',
+      'legal approval',
+      'commercial approval',
+      'external integration proof',
+      'pilot proof',
+      'Actual production promotion remains outside this synthetic capstone'
+    )
     Stages = @(
       @{ Name = 'Prediction'; Terms = @('Acceptance evidence') },
       @{ Name = 'Preflight'; Terms = @('Synthetic boundary') },
@@ -415,11 +506,11 @@ foreach ($m in @($curriculum.milestones)[0..$lastIndex]) {
       Assert-Equal $newTermMarkers.Count 1 "$($m.id) $($stageRule.Name) declares new terms"
       Assert-Equal $actions.Count 1 "$($m.id) $($stageRule.Name) has exactly one learner action"
       Assert-Equal $waits.Count 1 "$($m.id) $($stageRule.Name) has exactly one wait"
+      Assert-True (Test-StageTeachingGrammar $body) "$($m.id) $($stageRule.Name) uses the exact teaching-stage grammar"
       if (($mentalModels.Count -eq 1) -and ($newTermMarkers.Count -eq 1) -and ($actions.Count -eq 1) -and ($waits.Count -eq 1)) {
         Assert-True (($mentalModels[0].Index -lt $newTermMarkers[0].Index) -and ($newTermMarkers[0].Index -lt $actions[0].Index) -and ($actions[0].Index -lt $waits[0].Index)) "$($m.id) $($stageRule.Name) teaches, acts, then waits"
         Assert-Match $waits[0].Value '(?i)\b(Stop|Wait)\b.*\b(inspect|confirm|classify|review|check|evidence|result|prediction|output|diff|location)\b' "$($m.id) $($stageRule.Name) wait checks learner evidence"
-        $actionProse = $actions[0].Value -replace '`[^`]*`', '<command>'
-        Assert-True (-not ($actionProse -match '(?i)\b(?:then|and)\s+(?:run|make|create|collect|identify|state|write|start|add|capture|share|explain|change)\b')) "$($m.id) $($stageRule.Name) action is not a bundled action list"
+        Assert-True (Test-OneLearnerAction $actions[0].Value) "$($m.id) $($stageRule.Name) action is not a bundled action list"
         $afterWait = $body.Substring($waits[0].Index + $waits[0].Length).Trim()
         Assert-Equal $afterWait '' "$($m.id) $($stageRule.Name) waits before the next stage"
       }
@@ -592,7 +683,20 @@ Expected relationship: `$ancestryExit = $LASTEXITCODE`.
       Assert-Match $hints '(?i)does not prove|is not' 'M09 hints do not equate configuration with enforcement'
     }
     if ($m.id -eq 'M10') {
-      foreach ($category in @('provider delivery','model behavior','Handoff integration','managed database controls','privacy approval','production-owner approval')) {
+      foreach ($category in @(
+        'provider delivery',
+        'model behavior',
+        'Handoff integration',
+        'managed database controls',
+        'approved Sales Policy content',
+        'approved Product Knowledge content',
+        'legal approval',
+        'privacy approval',
+        'commercial approval',
+        'external integration proof',
+        'pilot proof',
+        'production-owner approval'
+      )) {
         Assert-Match $hints ([regex]::Escape($category)) "M10 hints name $category production evidence"
       }
       Assert-True (-not ($hints -match '(?i)API[_ -]?key|access token|password|client secret|real provider credentials')) 'M10 hints do not prescribe production credentials'

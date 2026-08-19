@@ -50,7 +50,7 @@ M09 is the immediate prerequisite. The tutor reveals only Stage 1 initially. Do 
 
 **One action:** Run `powershell -ExecutionPolicy Bypass -File .\tests\learning\checkpoints\Test-M10.ps1` once.
 
-**Wait:** Wait for the complete output and inspect the final result before tracing a scenario.
+**Wait:** Wait for the complete output and inspect its exit, full-pass marker, and cleanup evidence; do not advance to the next stage unless all three succeed.
 
 ### Stage 4 — Scenario trace
 
@@ -92,11 +92,12 @@ M09 is the immediate prerequisite. The tutor reveals only Stage 1 initially. Do 
 - Preserve the final exit result and focused diagnostic location for any failure.
 - Trace one event through intake, durable state, governed decision, authorized external intent, recovery or scheduling when applicable, and terminal operational evidence.
 - A green local run proves only the declared synthetic implementation and invariants.
+- The external-gate inventory must cover provider delivery, model behavior, Handoff integration, managed database controls, approved Sales Policy content, approved Product Knowledge content, legal approval, privacy approval, commercial approval, external integration proof, pilot proof, and production-owner approval.
 - Actual production promotion remains outside this synthetic capstone.
 
 ## Check
 
-The M10 checkpoint performs preflight and delegates to the complete release harness. Completion requires its behavior evidence plus the learner's data-flow explanation, design decision, realistic failure analysis, transfer evidence, and complete external-gate inventory.
+The M10 checkpoint performs preflight and delegates to the complete release harness. Its behavior gate passes only when that harness exits 0, emits the expected full-pass marker, and records successful cleanup evidence. A nonzero exit blocks M10 completion. Likewise, a missing full-pass marker blocks M10 completion, and missing cleanup evidence blocks M10 completion. After that behavior gate passes, completion still requires the learner's data-flow explanation, design decision, realistic failure analysis, transfer evidence, and complete external-gate inventory.
 
 ## Explain
 

@@ -2,7 +2,7 @@
   "id": "M10",
   "prerequisites": ["M09"],
   "testScript": "tests/learning/checkpoints/Test-M10.ps1",
-  "behaviorEvidence": ["complete-release-harness", "end-to-end-scenario-trace", "failure-analysis-and-production-gates"],
+  "behaviorEvidence": ["complete-release-harness-exit-zero", "complete-release-harness-full-pass-marker", "complete-release-harness-cleanup-evidence", "end-to-end-scenario-trace", "failure-analysis-and-production-gates"],
   "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
   "estimatedSeconds": 240
 }
