@@ -4,9 +4,52 @@ $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $curriculum = Get-Content -Raw "$root/learning/curriculum.yaml" | ConvertFrom-Json
 $lastIndex = [int]$Through.Substring(1)
 
+function Remove-RawHtmlContainers([string]$Text) {
+  $visibleText = New-Object System.Text.StringBuilder
+  $openTags = New-Object System.Collections.Generic.List[string]
+  $voidTags = @('area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr')
+  $tagPattern = [regex]::new('(?is)<(?<Closing>/)?(?<Tag>[a-z][a-z0-9-]*)\b(?<Attributes>[^>]*)>')
+  $position = 0
+
+  foreach ($tagMatch in $tagPattern.Matches($Text)) {
+    if ($openTags.Count -eq 0) {
+      [void]$visibleText.Append($Text.Substring($position, $tagMatch.Index - $position))
+    }
+
+    $tagName = $tagMatch.Groups['Tag'].Value.ToLowerInvariant()
+    $isClosing = $tagMatch.Groups['Closing'].Success
+    $isSelfClosing = $tagMatch.Groups['Attributes'].Value.TrimEnd().EndsWith('/')
+    if ($isClosing) {
+      $matchingIndex = -1
+      for ($index = $openTags.Count - 1; $index -ge 0; $index--) {
+        if ($openTags[$index] -ceq $tagName) {
+          $matchingIndex = $index
+          break
+        }
+      }
+      if ($matchingIndex -ge 0) {
+        $openTags.RemoveRange($matchingIndex, $openTags.Count - $matchingIndex)
+      } elseif ($openTags.Count -eq 0) {
+        [void]$visibleText.Append($tagMatch.Value)
+      }
+    } elseif (-not $isSelfClosing -and ($voidTags -cnotcontains $tagName)) {
+      $openTags.Add($tagName)
+    } elseif ($openTags.Count -eq 0) {
+      [void]$visibleText.Append($tagMatch.Value)
+    }
+
+    $position = $tagMatch.Index + $tagMatch.Length
+  }
+
+  if ($openTags.Count -eq 0) {
+    [void]$visibleText.Append($Text.Substring($position))
+  }
+  return $visibleText.ToString()
+}
+
 function Get-OneActionPowerShellCommand([string]$StageBody) {
   $visibleBody = [regex]::Replace($StageBody, '(?s)<!--.*?(?:-->|\z)', '')
-  $visibleBody = [regex]::Replace($visibleBody, '(?is)<(?<Tag>[a-z][a-z0-9-]*)\b[^>]*>.*?</\k<Tag>\s*>', '')
+  $visibleBody = Remove-RawHtmlContainers $visibleBody
   $visibleLines = New-Object System.Collections.Generic.List[string]
   $insideCodeFence = $false
   $fenceCharacter = $null
@@ -56,7 +99,13 @@ function Test-M00StarterAncestryCommand([string]$Command) {
   }
 
   $statements = @($commandAst.EndBlock.Statements)
-  if (($statements.Count -ne 4) -or ($commandAst.EndBlock.Traps.Count -ne 0)) {
+  $redirections = @($commandAst.FindAll({
+    param($node)
+    $node -is [System.Management.Automation.Language.RedirectionAst]
+  }, $true))
+  if (($statements.Count -ne 4) -or
+      ($commandAst.EndBlock.Traps.Count -ne 0) -or
+      ($redirections.Count -ne 0)) {
     return $false
   }
 
@@ -135,8 +184,9 @@ function Test-M00StarterAncestryCommand([string]$Command) {
     return $false
   }
 
-  $guardStatements = @($guard.Clauses[0].Item2.Statements)
-  if ($guardStatements.Count -ne 1) {
+  $guardBlock = $guard.Clauses[0].Item2
+  $guardStatements = @($guardBlock.Statements)
+  if (($guardStatements.Count -ne 1) -or ($guardBlock.Traps.Count -ne 0)) {
     return $false
   }
   if ($guardStatements[0] -is [System.Management.Automation.Language.ThrowStatementAst]) {
@@ -369,6 +419,15 @@ Expected relationship: `$ancestryExit = $LASTEXITCODE`.
       $trappedThrowCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; trap { continue }; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
       Assert-True (-not (Test-M00StarterAncestryCommand $trappedThrowCommand)) 'M00 validator rejects a trap that swallows the ancestry failure'
 
+      $guardLocalTrapCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { trap { continue }; throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $guardLocalTrapCommand)) 'M00 validator rejects a guard-local trap that swallows the ancestry failure'
+
+      $gitRedirectionCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD 2>$(exit 0); $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $gitRedirectionCommand)) 'M00 validator rejects a Git redirection subexpression'
+
+      $hiddenEvidenceRedirectionCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit" > $null; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $hiddenEvidenceRedirectionCommand)) 'M00 validator rejects hidden evidence redirection'
+
       $wrongHeadCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD~1; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
       Assert-True (-not (Test-M00StarterAncestryCommand $wrongHeadCommand)) 'M00 validator rejects a different ancestry target'
 
@@ -401,6 +460,21 @@ Expected relationship: `$ancestryExit = $LASTEXITCODE`.
 </div>
 '@
       Assert-True ($null -eq (Get-OneActionPowerShellCommand $hiddenHtmlStage)) 'M00 extractor ignores an action hidden in a raw HTML block'
+
+      $nestedHiddenHtmlStage = @'
+<div hidden>
+<div>
+</div>
+**One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }`.
+</div>
+'@
+      Assert-True ($null -eq (Get-OneActionPowerShellCommand $nestedHiddenHtmlStage)) 'M00 extractor ignores an action inside nested same-tag hidden HTML'
+
+      $unclosedHiddenHtmlStage = @'
+<div hidden>
+**One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }`.
+'@
+      Assert-True ($null -eq (Get-OneActionPowerShellCommand $unclosedHiddenHtmlStage)) 'M00 extractor ignores an action inside unclosed hidden HTML'
       Assert-Match $stageByName['Clean state'] '(?m)^\*\*One action:\*\* Run `git status --short`\.$' 'M00 working-tree state is observable'
       Assert-True (-not ($lesson -match '(?i)\bworktree\b')) 'M00 uses Working tree rather than the ambiguous worktree synonym'
     }
