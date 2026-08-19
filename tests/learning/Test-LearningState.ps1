@@ -13,8 +13,63 @@ function Assert-Throws([scriptblock]$Action, [string]$Message) {
   Assert-True $threw $Message
 }
 
+function Get-OperationFailure([scriptblock]$Action) {
+  try {
+    & $Action | Out-Null
+    return $null
+  } catch {
+    return $_
+  }
+}
+
 function Read-Progress($Context) {
   Get-Content -Raw -LiteralPath $Context.ProgressPath | ConvertFrom-Json
+}
+
+function Write-Progress($Context, $Progress) {
+  [IO.File]::WriteAllText(
+    $Context.ProgressPath,
+    ($Progress | ConvertTo-Json -Depth 20),
+    [Text.UTF8Encoding]::new($false)
+  )
+}
+
+function New-LearningFixture([string]$Parent, [string]$Name) {
+  $fixtureRoot = Join-Path $Parent $Name
+  New-Item -Path $fixtureRoot -ItemType Directory -ErrorAction Stop | Out-Null
+  Copy-Item -LiteralPath (Join-Path $script:root 'learning') -Destination $fixtureRoot -Recurse -ErrorAction Stop
+  $fixtureContext = Get-LearningContext -RepositoryRoot $fixtureRoot
+  $null = Initialize-LearningProgress -Context $fixtureContext
+  $fixtureContext
+}
+
+function Assert-CorruptProgressRejected(
+  [string]$Parent,
+  [string]$Name,
+  [scriptblock]$Corrupt,
+  [scriptblock]$Operation
+) {
+  $fixtureContext = New-LearningFixture -Parent $Parent -Name $Name
+  $progress = Read-Progress $fixtureContext
+  & $Corrupt $progress
+  Write-Progress -Context $fixtureContext -Progress $progress
+  $before = [Convert]::ToBase64String([IO.File]::ReadAllBytes($fixtureContext.ProgressPath))
+  $failure = Get-OperationFailure { & $Operation $fixtureContext }
+  Assert-True ($null -ne $failure) "$Name corrupt progress rejected"
+  $after = [Convert]::ToBase64String([IO.File]::ReadAllBytes($fixtureContext.ProgressPath))
+  Assert-True ($after -ceq $before) "$Name corrupt progress remains byte-for-byte unchanged"
+}
+
+function Get-ExpectedLearningLockName([string]$ProgressPath) {
+  $canonicalPath = [IO.Path]::GetFullPath($ProgressPath).ToUpperInvariant()
+  $sha256 = [Security.Cryptography.SHA256]::Create()
+  try {
+    $hash = $sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($canonicalPath))
+  } finally {
+    $sha256.Dispose()
+  }
+  $hex = -join @($hash | ForEach-Object { $_.ToString('x2') })
+  "Local\SalesFlowLearningProgress-$hex"
 }
 
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
@@ -29,6 +84,10 @@ try {
   Assert-Equal $ctx.CurriculumPath (Join-Path $ctx.RepositoryRoot 'learning/curriculum.yaml') 'context resolves curriculum path'
   Assert-Equal $ctx.TemplatePath (Join-Path $ctx.RepositoryRoot 'learning/progress-template.json') 'context resolves template path'
   Assert-Equal $ctx.ProgressPath (Join-Path $ctx.RepositoryRoot '.learning/progress.json') 'context resolves progress path'
+
+  $driveRoot = [IO.Path]::GetPathRoot($ctx.RepositoryRoot)
+  $driveContext = Get-LearningContext -RepositoryRoot $driveRoot
+  Assert-Equal $driveContext.RepositoryRoot (Resolve-Path -LiteralPath $driveRoot).Path 'context preserves canonical drive root'
 
   $null = Initialize-LearningProgress -Context $ctx
   $p = Read-Progress $ctx
@@ -50,10 +109,109 @@ try {
     TemplatePath = $ctx.TemplatePath
     ProgressPath = $invalidProgressPath
   }
-  Assert-Throws { Initialize-LearningProgress -Context $invalidContext } 'atomic persistence rejects a directory destination'
-  Assert-True (-not (Test-Path -LiteralPath "$invalidProgressPath.tmp")) 'failed atomic persistence removes temp file'
+  $invalidFailure = Get-OperationFailure { Initialize-LearningProgress -Context $invalidContext }
+  Assert-True ($null -ne $invalidFailure) 'atomic persistence rejects a directory destination'
+  $invalidTemps = @(Get-ChildItem -LiteralPath (Split-Path -Parent $invalidProgressPath) -Filter 'cannot-replace.*.tmp' -File)
+  Assert-Equal $invalidTemps.Count 1 'failed atomic persistence retains one unique diagnostic temp file'
+  if ($invalidTemps.Count -eq 1) {
+    Assert-Match $invalidTemps[0].Name '^cannot-replace\.[0-9a-f]{32}\.tmp$' 'failed persistence uses a GUID-unique temp path'
+    Assert-Match $invalidFailure.Exception.Message ([regex]::Escape($invalidTemps[0].FullName)) 'persistence failure surfaces diagnostic temp path'
+  }
   Assert-Equal @(Get-ChildItem -LiteralPath $invalidProgressPath -Force).Count 0 'failed atomic persistence leaves destination directory unchanged'
+  if ($invalidTemps.Count -eq 1) {
+    Remove-Item -LiteralPath $invalidTemps[0].FullName -Force -ErrorAction Stop
+  }
   Remove-Item -LiteralPath $invalidProgressPath -Recurse -Force
+
+  $beforeLockedMove = [Convert]::ToBase64String([IO.File]::ReadAllBytes($ctx.ProgressPath))
+  $progressLock = [IO.File]::Open($ctx.ProgressPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+  try {
+    $lockedMoveFailure = Get-OperationFailure { Start-LearningMilestone -Context $ctx -MilestoneId M00 }
+  } finally {
+    $progressLock.Dispose()
+  }
+  Assert-True ($null -ne $lockedMoveFailure) 'real replacement failure terminates public mutation'
+  Assert-True (([Convert]::ToBase64String([IO.File]::ReadAllBytes($ctx.ProgressPath))) -ceq $beforeLockedMove) 'real replacement failure preserves final file byte-for-byte'
+  $lockedMoveTemps = @(Get-ChildItem -LiteralPath (Split-Path -Parent $ctx.ProgressPath) -Filter 'progress.json.*.tmp' -File)
+  Assert-Equal $lockedMoveTemps.Count 1 'real replacement failure retains one unique diagnostic temp file'
+  if ($lockedMoveTemps.Count -eq 1) {
+    Assert-Match $lockedMoveFailure.Exception.Message ([regex]::Escape($lockedMoveTemps[0].FullName)) 'real replacement failure surfaces diagnostic temp path'
+    Remove-Item -LiteralPath $lockedMoveTemps[0].FullName -Force -ErrorAction Stop
+  }
+
+  Assert-CorruptProgressRejected -Parent $temp -Name 'wrong-behavior-boolean' -Corrupt {
+    param($progress)
+    $progress.milestones.M00.status = 'active'
+    $progress.milestones.M00.attempts = 1
+    $progress.milestones.M00.behaviorGate = 'false'
+    $progress.milestones.M00.lastCheckResult = $true
+  } -Operation {
+    param($corruptContext)
+    Complete-LearningMilestone -Context $corruptContext -MilestoneId M00 -Explanation 'x' -FailureMode 'y' -TransferEvidence 'z'
+  }
+  Assert-CorruptProgressRejected -Parent $temp -Name 'wrong-understanding-boolean' -Corrupt {
+    param($progress)
+    $progress.milestones.M00.understandingGate = 'false'
+  } -Operation { param($corruptContext) Initialize-LearningProgress -Context $corruptContext }
+  Assert-CorruptProgressRejected -Parent $temp -Name 'missing-schema-version' -Corrupt {
+    param($progress)
+    $progress.PSObject.Properties.Remove('schemaVersion')
+  } -Operation { param($corruptContext) Initialize-LearningProgress -Context $corruptContext }
+  Assert-CorruptProgressRejected -Parent $temp -Name 'unsupported-schema-version' -Corrupt {
+    param($progress)
+    $progress.schemaVersion = 99
+  } -Operation { param($corruptContext) Initialize-LearningProgress -Context $corruptContext }
+  Assert-CorruptProgressRejected -Parent $temp -Name 'invalid-status' -Corrupt {
+    param($progress)
+    $progress.milestones.M00.status = 'ready-ish'
+  } -Operation { param($corruptContext) Initialize-LearningProgress -Context $corruptContext }
+  Assert-CorruptProgressRejected -Parent $temp -Name 'invalid-current-milestone' -Corrupt {
+    param($progress)
+    $progress.currentMilestone = 'M99'
+  } -Operation { param($corruptContext) Initialize-LearningProgress -Context $corruptContext }
+  Assert-CorruptProgressRejected -Parent $temp -Name 'missing-milestone' -Corrupt {
+    param($progress)
+    $progress.milestones.PSObject.Properties.Remove('M10')
+  } -Operation { param($corruptContext) Initialize-LearningProgress -Context $corruptContext }
+
+  $malformedContext = New-LearningFixture -Parent $temp -Name 'malformed-json'
+  [IO.File]::WriteAllText($malformedContext.ProgressPath, '{not-json', [Text.UTF8Encoding]::new($false))
+  $malformedBefore = [Convert]::ToBase64String([IO.File]::ReadAllBytes($malformedContext.ProgressPath))
+  $malformedFailure = Get-OperationFailure { Initialize-LearningProgress -Context $malformedContext }
+  Assert-True ($null -ne $malformedFailure) 'malformed JSON progress rejected'
+  Assert-True (([Convert]::ToBase64String([IO.File]::ReadAllBytes($malformedContext.ProgressPath))) -ceq $malformedBefore) 'malformed JSON remains byte-for-byte unchanged'
+
+  $contentionContext = New-LearningFixture -Parent $temp -Name 'lock-contention'
+  $contentionBefore = [Convert]::ToBase64String([IO.File]::ReadAllBytes($contentionContext.ProgressPath))
+  $mutex = [Threading.Mutex]::new($false, (Get-ExpectedLearningLockName -ProgressPath $contentionContext.ProgressPath))
+  $mutexHeld = $false
+  $job = $null
+  try {
+    $mutexHeld = $mutex.WaitOne(0)
+    Assert-True $mutexHeld 'test acquires learning progress mutex'
+    $job = Start-Job -ScriptBlock {
+      param($modulePath, $repositoryRoot)
+      Import-Module $modulePath -Force -ErrorAction Stop
+      $jobContext = Get-LearningContext -RepositoryRoot $repositoryRoot
+      $jobContext | Add-Member -NotePropertyName LockTimeoutMilliseconds -NotePropertyValue 250
+      try {
+        Start-LearningMilestone -Context $jobContext -MilestoneId M00 | Out-Null
+        [pscustomobject]@{ Succeeded = $true; Message = '' }
+      } catch {
+        [pscustomobject]@{ Succeeded = $false; Message = $_.Exception.Message }
+      }
+    } -ArgumentList $modulePath, $contentionContext.RepositoryRoot
+    $null = Wait-Job -Job $job -Timeout 15
+    Assert-Equal $job.State 'Completed' 'contending mutation finishes within bounded time'
+    $contentionResult = Receive-Job -Job $job
+    Assert-True (-not $contentionResult.Succeeded) 'contending mutation fails instead of racing'
+    Assert-Match $contentionResult.Message 'Timed out waiting for learning progress lock' 'contention reports bounded lock timeout'
+  } finally {
+    if ($mutexHeld) { $mutex.ReleaseMutex() }
+    $mutex.Dispose()
+    if ($null -ne $job) { Remove-Job -Job $job -Force -ErrorAction SilentlyContinue }
+  }
+  Assert-True (([Convert]::ToBase64String([IO.File]::ReadAllBytes($contentionContext.ProgressPath))) -ceq $contentionBefore) 'contending mutation leaves durable state unchanged'
 
   $beforeRejectedStart = Get-Content -Raw -LiteralPath $ctx.ProgressPath
   Assert-Throws { Start-LearningMilestone -Context $ctx -MilestoneId M02 } 'locked milestone rejected'
@@ -112,6 +270,15 @@ try {
   Assert-Equal (@($p.milestones.M00.evidenceRevision) -join ',') 'orientation-ok' 'passed check evidence recorded'
   Assert-True (-not [string]::IsNullOrWhiteSpace($p.milestones.M00.lastCheckAt)) 'passed check timestamp recorded'
 
+  $null = Record-LearningCheck -Context $ctx -MilestoneId M00 -Passed $false -Evidence @('later-failure')
+  $p = Read-Progress $ctx
+  Assert-True (-not $p.milestones.M00.behaviorGate) 'later failed check revokes behavior gate'
+  Assert-Equal $p.milestones.M00.lastCheckResult $false 'later failed check becomes authoritative result'
+  Assert-Throws {
+    Complete-LearningMilestone -Context $ctx -MilestoneId M00 -Explanation 'x' -FailureMode 'y' -TransferEvidence 'z'
+  } 'completion rejects pass-then-fail state'
+  $null = Record-LearningCheck -Context $ctx -MilestoneId M00 -Passed $true -Evidence @('orientation-ok')
+
   foreach ($understanding in @(
     @{ Explanation = ' '; FailureMode = 'failure'; TransferEvidence = 'transfer'; Label = 'blank explanation' },
     @{ Explanation = 'explanation'; FailureMode = "`t"; TransferEvidence = 'transfer'; Label = 'blank failure mode' },
@@ -140,6 +307,7 @@ try {
   Assert-Equal $p.milestones.M01.status 'available' 'immediate successor becomes available'
   Assert-Equal $p.milestones.M02.status 'locked' 'completion does not unlock later successors'
   Assert-True (-not (Test-Path -LiteralPath "$($ctx.ProgressPath).tmp")) 'completion removes atomic temp file'
+  Assert-Equal @(Get-ChildItem -LiteralPath (Split-Path -Parent $ctx.ProgressPath) -Filter 'progress.json.*.tmp' -File).Count 0 'successful transitions leave no unique temp files'
 
   Assert-Throws { Start-LearningMilestone -Context $ctx -MilestoneId M00 } 'completed milestone cannot restart'
   Assert-Throws { Start-LearningMilestone -Context $ctx -MilestoneId M02 } 'still-locked later milestone rejected'
