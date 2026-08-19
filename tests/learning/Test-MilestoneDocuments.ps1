@@ -175,6 +175,7 @@ foreach ($m in @($curriculum.milestones)[0..$lastIndex]) {
       Assert-Match $stageByName['Starter ancestry'] 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD' 'M00 checks exact starter ancestry'
       Assert-Match $stageByName['Starter ancestry'] 'starter-ancestry-exit=' 'M00 emits ancestry evidence'
       Assert-Match $stageByName['Starter ancestry'] '\$LASTEXITCODE' 'M00 captures objective ancestry exit status'
+      Assert-Match $stageByName['Starter ancestry'] '(?i)\$ancestryExit\s*=\s*\$LASTEXITCODE\b' 'M00 assigns the ancestry result from the Git exit status'
       Assert-Match $stageByName['Starter ancestry'] '(?i)if\s*\(\s*\$ancestryExit\s+-ne\s+0\s*\)\s*\{\s*(?:throw\b|exit\s+[1-9]\d*)' 'M00 fails closed when starter ancestry is not proven'
       Assert-Match $stageByName['Clean state'] '(?m)^\*\*One action:\*\* Run `git status --short`\.$' 'M00 working-tree state is observable'
       Assert-True (-not ($lesson -match '(?i)\bworktree\b')) 'M00 uses Working tree rather than the ambiguous worktree synonym'
