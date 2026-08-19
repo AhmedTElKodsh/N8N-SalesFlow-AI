@@ -288,6 +288,80 @@ $expected = @{
       @{ Name = 'Evidence'; Terms = @('Deterministic fixture') }
     )
   }
+  M06 = @{
+    Prerequisites = @('M05'); Estimate = 30
+    Evidence = @('consent-gated-persisted-intent','claimed-rechecked-dispatch','idempotent-finish-and-ambiguity')
+    Required = @('transactional outbox','remote-success/local-persistence-failure ambiguity','Callbacks and retry recovery remain deferred to M07')
+    Stages = @(
+      @{ Name = 'Prediction'; Terms = @('Authorized side effect') },
+      @{ Name = 'Consent'; Terms = @('Consent') },
+      @{ Name = 'Persisted intent'; Terms = @('Transactional outbox') },
+      @{ Name = 'Claim'; Terms = @('Lease') },
+      @{ Name = 'Authorization recheck'; Terms = @('Authorization recheck') },
+      @{ Name = 'Dispatch'; Terms = @('Idempotency key') },
+      @{ Name = 'Finish'; Terms = @('Dispatch result') },
+      @{ Name = 'Ambiguity evidence'; Terms = @('Ambiguous outcome') }
+    )
+  }
+  M07 = @{
+    Prerequisites = @('M06'); Estimate = 30
+    Evidence = @('bounded-retry-backoff','monotonic-provider-callback','expired-claim-ambiguous-reconciliation')
+    Required = @('bounded retry','monotonic','Scheduling and human ownership remain deferred to M08')
+    Stages = @(
+      @{ Name = 'Prediction'; Terms = @('Recovery policy') },
+      @{ Name = 'Retry'; Terms = @('Bounded retry','Backoff') },
+      @{ Name = 'Callback'; Terms = @('Provider callback') },
+      @{ Name = 'Monotonic status'; Terms = @('Monotonic state') },
+      @{ Name = 'Expired claim'; Terms = @('Expired claim') },
+      @{ Name = 'Ambiguous result'; Terms = @('Reconciliation') },
+      @{ Name = 'Evidence'; Terms = @('Reconciliation evidence') }
+    )
+  }
+  M08 = @{
+    Prerequisites = @('M07'); Estimate = 45
+    Evidence = @('utc-service-window-follow-ups','opt-out-human-owned-lockout','handoff-and-scheduler-recovery')
+    Required = @('UTC Follow-Ups','opt-out precedence','Human-Owned lockout','Privacy deletion and releases remain deferred to M09')
+    Stages = @(
+      @{ Name = 'Prediction'; Terms = @('UTC due work') },
+      @{ Name = 'Service window'; Terms = @('Service window') },
+      @{ Name = 'Template'; Terms = @('Template window') },
+      @{ Name = 'Opt-out'; Terms = @('Opt-out precedence') },
+      @{ Name = 'Ownership'; Terms = @('Human-Owned lockout') },
+      @{ Name = 'Handoff'; Terms = @('Handoff dispatch') },
+      @{ Name = 'Scheduler recovery'; Terms = @('Scheduler recovery') },
+      @{ Name = 'Evidence'; Terms = @() }
+    )
+  }
+  M09 = @{
+    Prerequisites = @('M08'); Estimate = 30
+    Evidence = @('correlated-audit-evidence','deletion-minimization-enforced-retention','secret-release-rollback-alerts')
+    Required = @('configured retention value is not an enforced purge','Real provider infrastructure remains an external production gate')
+    Stages = @(
+      @{ Name = 'Prediction'; Terms = @('Audit evidence') },
+      @{ Name = 'Correlation'; Terms = @('Correlation identifier') },
+      @{ Name = 'Minimization'; Terms = @('Minimization') },
+      @{ Name = 'Deletion'; Terms = @('Deletion evidence') },
+      @{ Name = 'Retention'; Terms = @('Enforced retention') },
+      @{ Name = 'Secret boundary'; Terms = @('Secret boundary') },
+      @{ Name = 'Release identity'; Terms = @('Release identity') },
+      @{ Name = 'Rollback'; Terms = @('Rollback behavior') },
+      @{ Name = 'Alerts'; Terms = @('Operational alert') },
+      @{ Name = 'Evidence'; Terms = @() }
+    )
+  }
+  M10 = @{
+    Prerequisites = @('M09'); Estimate = 240
+    Evidence = @('complete-release-harness','end-to-end-scenario-trace','failure-analysis-and-production-gates')
+    Required = @('complete release harness','Actual production promotion remains outside this synthetic capstone')
+    Stages = @(
+      @{ Name = 'Prediction'; Terms = @('Acceptance evidence') },
+      @{ Name = 'Preflight'; Terms = @('Synthetic boundary') },
+      @{ Name = 'Complete suite'; Terms = @() },
+      @{ Name = 'Scenario trace'; Terms = @('Scenario trace') },
+      @{ Name = 'Failure analysis'; Terms = @('Failure mode') },
+      @{ Name = 'Production gates'; Terms = @('Production gate') }
+    )
+  }
 }
 
 foreach ($m in @($curriculum.milestones)[0..$lastIndex]) {
@@ -501,6 +575,27 @@ Expected relationship: `$ancestryExit = $LASTEXITCODE`.
     Assert-True $hintFive.Success "$($m.id) isolates hint 5"
     if ($hintFive.Success) {
       Assert-Match $hintFive.Groups['Body'].Value '\[[^\]]*____[^\]]*\]' "$($m.id) hint 5 is incomplete"
+    }
+
+    if ($m.id -eq 'M06') {
+      $hintTwo = [regex]::Match($hints, '(?ms)^## Hint 2 .+?\r?\n(?<Body>.*?)(?=^## Hint |\z)')
+      Assert-True $hintTwo.Success 'M06 isolates hint 2'
+      if ($hintTwo.Success) {
+        Assert-Match $hintTwo.Groups['Body'].Value '(?i)database transaction' 'M06 hint 2 teaches the database transaction boundary'
+        Assert-Match $hintTwo.Groups['Body'].Value '(?i)cannot[^\r\n]*remote provider call' 'M06 hint 2 explains why a remote provider call cannot join the transaction'
+        Assert-True (-not ($hintTwo.Groups['Body'].Value -match '(?i)SalesFlow|transactional outbox|outbound_intent|dispatch')) 'M06 hint 2 stays conceptual rather than describing the final SalesFlow structure'
+      }
+    }
+    if ($m.id -eq 'M09') {
+      Assert-Match $hints '(?i)configured retention value' 'M09 hints identify configured retention values'
+      Assert-Match $hints '(?i)enforced purge' 'M09 hints distinguish an enforced purge'
+      Assert-Match $hints '(?i)does not prove|is not' 'M09 hints do not equate configuration with enforcement'
+    }
+    if ($m.id -eq 'M10') {
+      foreach ($category in @('provider delivery','model behavior','Handoff integration','managed database controls','privacy approval','production-owner approval')) {
+        Assert-Match $hints ([regex]::Escape($category)) "M10 hints name $category production evidence"
+      }
+      Assert-True (-not ($hints -match '(?i)API[_ -]?key|access token|password|client secret|real provider credentials')) 'M10 hints do not prescribe production credentials'
     }
   }
 }

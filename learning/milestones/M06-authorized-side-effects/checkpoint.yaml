@@ -1,0 +1,8 @@
+{
+  "id": "M06",
+  "prerequisites": ["M05"],
+  "testScript": "tests/learning/checkpoints/Test-M06.ps1",
+  "behaviorEvidence": ["consent-gated-persisted-intent", "claimed-rechecked-dispatch", "idempotent-finish-and-ambiguity"],
+  "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
+  "estimatedSeconds": 30
+}

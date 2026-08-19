@@ -1,0 +1,8 @@
+{
+  "id": "M07",
+  "prerequisites": ["M06"],
+  "testScript": "tests/learning/checkpoints/Test-M07.ps1",
+  "behaviorEvidence": ["bounded-retry-backoff", "monotonic-provider-callback", "expired-claim-ambiguous-reconciliation"],
+  "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
+  "estimatedSeconds": 30
+}

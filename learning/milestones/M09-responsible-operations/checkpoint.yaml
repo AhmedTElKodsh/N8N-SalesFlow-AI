@@ -1,0 +1,8 @@
+{
+  "id": "M09",
+  "prerequisites": ["M08"],
+  "testScript": "tests/learning/checkpoints/Test-M09.ps1",
+  "behaviorEvidence": ["correlated-audit-evidence", "deletion-minimization-enforced-retention", "secret-release-rollback-alerts"],
+  "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
+  "estimatedSeconds": 30
+}

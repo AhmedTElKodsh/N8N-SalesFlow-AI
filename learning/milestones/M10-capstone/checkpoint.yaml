@@ -1,0 +1,8 @@
+{
+  "id": "M10",
+  "prerequisites": ["M09"],
+  "testScript": "tests/learning/checkpoints/Test-M10.ps1",
+  "behaviorEvidence": ["complete-release-harness", "end-to-end-scenario-trace", "failure-analysis-and-production-gates"],
+  "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
+  "estimatedSeconds": 240
+}

@@ -1,0 +1,8 @@
+{
+  "id": "M08",
+  "prerequisites": ["M07"],
+  "testScript": "tests/learning/checkpoints/Test-M08.ps1",
+  "behaviorEvidence": ["utc-service-window-follow-ups", "opt-out-human-owned-lockout", "handoff-and-scheduler-recovery"],
+  "understandingPrompts": ["dataFlow", "designDecision", "failureMode"],
+  "estimatedSeconds": 45
+}
