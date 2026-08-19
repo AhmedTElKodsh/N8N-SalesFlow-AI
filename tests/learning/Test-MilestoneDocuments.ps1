@@ -3,6 +3,157 @@ param([ValidateSet('M05','M10')][string]$Through = 'M10')
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $curriculum = Get-Content -Raw "$root/learning/curriculum.yaml" | ConvertFrom-Json
 $lastIndex = [int]$Through.Substring(1)
+
+function Get-OneActionPowerShellCommand([string]$StageBody) {
+  $visibleBody = [regex]::Replace($StageBody, '(?s)<!--.*?(?:-->|\z)', '')
+  $visibleBody = [regex]::Replace($visibleBody, '(?is)<(?<Tag>[a-z][a-z0-9-]*)\b[^>]*>.*?</\k<Tag>\s*>', '')
+  $visibleLines = New-Object System.Collections.Generic.List[string]
+  $insideCodeFence = $false
+  $fenceCharacter = $null
+  $fenceLength = 0
+  foreach ($line in [regex]::Split($visibleBody, '\r?\n')) {
+    if (-not $insideCodeFence -and $line -match '^[ \t]*(?<Marker>`{3,}|~{3,})') {
+      $insideCodeFence = $true
+      $fenceCharacter = $Matches['Marker'].Substring(0, 1)
+      $fenceLength = $Matches['Marker'].Length
+      continue
+    }
+    if ($insideCodeFence) {
+      $closingFencePattern = '^[ \t]*' + [regex]::Escape($fenceCharacter) + '{' + $fenceLength + ',}[ \t]*$'
+      if ($line -match $closingFencePattern) {
+        $insideCodeFence = $false
+        $fenceCharacter = $null
+        $fenceLength = 0
+      }
+      continue
+    }
+
+    $visibleLines.Add($line)
+  }
+
+  $actionMatches = [regex]::Matches(($visibleLines -join "`n"), '(?m)^\*\*One action:\*\* Run `(?<Command>[^`\r\n]+)`\.$')
+  if ($actionMatches.Count -ne 1) {
+    return $null
+  }
+
+  return $actionMatches[0].Groups['Command'].Value
+}
+
+function Test-M00StarterAncestryCommand([string]$Command) {
+  if ([string]::IsNullOrWhiteSpace($Command)) {
+    return $false
+  }
+
+  $tokens = $null
+  $parseErrors = $null
+  $commandAst = [System.Management.Automation.Language.Parser]::ParseInput(
+    $Command,
+    [ref]$tokens,
+    [ref]$parseErrors
+  )
+  if (($parseErrors.Count -ne 0) -or ($null -eq $commandAst.EndBlock)) {
+    return $false
+  }
+
+  $statements = @($commandAst.EndBlock.Statements)
+  if (($statements.Count -ne 4) -or ($commandAst.EndBlock.Traps.Count -ne 0)) {
+    return $false
+  }
+
+  $gitPipeline = $statements[0]
+  if (-not ($gitPipeline -is [System.Management.Automation.Language.PipelineAst]) -or
+      ($gitPipeline.PipelineElements.Count -ne 1) -or
+      -not ($gitPipeline.PipelineElements[0] -is [System.Management.Automation.Language.CommandAst])) {
+    return $false
+  }
+  $gitCommand = $gitPipeline.PipelineElements[0]
+  $gitElements = @($gitCommand.CommandElements)
+  if (($gitElements.Count -ne 5) -or
+      (@($gitElements | Where-Object { -not ($_ -is [System.Management.Automation.Language.StringConstantExpressionAst]) }).Count -ne 0) -or
+      ((@($gitElements | ForEach-Object { $_.Value }) -join ',') -cne 'git,merge-base,--is-ancestor,starter/salesflow-guided-v1,HEAD')) {
+    return $false
+  }
+
+  $assignment = $statements[1]
+  $capturesLastExitCode =
+    ($assignment -is [System.Management.Automation.Language.AssignmentStatementAst]) -and
+    ($assignment.Left -is [System.Management.Automation.Language.VariableExpressionAst]) -and
+    ($assignment.Left.VariablePath.UserPath -ieq 'ancestryExit') -and
+    ($assignment.Operator -eq [System.Management.Automation.Language.TokenKind]::Equals) -and
+    ($assignment.Right -is [System.Management.Automation.Language.CommandExpressionAst]) -and
+    ($assignment.Right.Expression -is [System.Management.Automation.Language.VariableExpressionAst]) -and
+    ($assignment.Right.Expression.VariablePath.UserPath -ieq 'LASTEXITCODE')
+  if (-not $capturesLastExitCode) {
+    return $false
+  }
+
+  $evidencePipeline = $statements[2]
+  if (-not ($evidencePipeline -is [System.Management.Automation.Language.PipelineAst]) -or
+      ($evidencePipeline.PipelineElements.Count -ne 1) -or
+      -not ($evidencePipeline.PipelineElements[0] -is [System.Management.Automation.Language.CommandAst])) {
+    return $false
+  }
+  $evidenceCommand = $evidencePipeline.PipelineElements[0]
+  $evidenceElements = @($evidenceCommand.CommandElements)
+  if (($evidenceCommand.GetCommandName() -ine 'Write-Output') -or
+      ($evidenceElements.Count -ne 2) -or
+      -not ($evidenceElements[1] -is [System.Management.Automation.Language.ExpandableStringExpressionAst]) -or
+      ($evidenceElements[1].Value -cne 'starter-ancestry-exit=$ancestryExit') -or
+      ($evidenceElements[1].NestedExpressions.Count -ne 1) -or
+      -not ($evidenceElements[1].NestedExpressions[0] -is [System.Management.Automation.Language.VariableExpressionAst]) -or
+      ($evidenceElements[1].NestedExpressions[0].VariablePath.UserPath -ine 'ancestryExit')) {
+    return $false
+  }
+
+  $guard = $statements[3]
+  if (-not ($guard -is [System.Management.Automation.Language.IfStatementAst]) -or
+      ($guard.Clauses.Count -ne 1) -or
+      ($null -ne $guard.ElseClause)) {
+    return $false
+  }
+
+  $condition = $guard.Clauses[0].Item1.GetPureExpression()
+  if (($null -eq $condition) -or
+      -not ($condition -is [System.Management.Automation.Language.BinaryExpressionAst]) -or
+      ($condition.Operator -ne [System.Management.Automation.Language.TokenKind]::Ine)) {
+    return $false
+  }
+
+  $leftIsAncestry =
+    ($condition.Left -is [System.Management.Automation.Language.VariableExpressionAst]) -and
+    ($condition.Left.VariablePath.UserPath -ieq 'ancestryExit')
+  $rightIsAncestry =
+    ($condition.Right -is [System.Management.Automation.Language.VariableExpressionAst]) -and
+    ($condition.Right.VariablePath.UserPath -ieq 'ancestryExit')
+  $leftIsZero =
+    ($condition.Left -is [System.Management.Automation.Language.ConstantExpressionAst]) -and
+    ($condition.Left.Value -eq 0)
+  $rightIsZero =
+    ($condition.Right -is [System.Management.Automation.Language.ConstantExpressionAst]) -and
+    ($condition.Right.Value -eq 0)
+  if (-not (($leftIsAncestry -and $rightIsZero) -or ($leftIsZero -and $rightIsAncestry))) {
+    return $false
+  }
+
+  $guardStatements = @($guard.Clauses[0].Item2.Statements)
+  if ($guardStatements.Count -ne 1) {
+    return $false
+  }
+  if ($guardStatements[0] -is [System.Management.Automation.Language.ThrowStatementAst]) {
+    $throwExpression = $guardStatements[0].Pipeline.GetPureExpression()
+    return (($throwExpression -is [System.Management.Automation.Language.StringConstantExpressionAst]) -and
+      ($throwExpression.Value -ceq 'starter ancestry failed'))
+  }
+  if ($guardStatements[0] -is [System.Management.Automation.Language.ExitStatementAst]) {
+    $exitExpression = $guardStatements[0].Pipeline.GetPureExpression()
+    return (($exitExpression -is [System.Management.Automation.Language.ConstantExpressionAst]) -and
+      ($exitExpression.Value -is [int]) -and
+      ($exitExpression.Value -ne 0))
+  }
+
+  return $false
+}
+
 $expected = @{
   M00 = @{
     Prerequisites = @(); Estimate = 5
@@ -172,11 +323,84 @@ foreach ($m in @($curriculum.milestones)[0..$lastIndex]) {
     }
     if ($m.id -eq 'M00') {
       Assert-Match $stageByName['Branch identity'] '(?m)^\*\*One action:\*\* Run `git branch --show-current`\.$' 'M00 branch identity is observable'
-      Assert-Match $stageByName['Starter ancestry'] 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD' 'M00 checks exact starter ancestry'
-      Assert-Match $stageByName['Starter ancestry'] 'starter-ancestry-exit=' 'M00 emits ancestry evidence'
-      Assert-Match $stageByName['Starter ancestry'] '\$LASTEXITCODE' 'M00 captures objective ancestry exit status'
-      Assert-Match $stageByName['Starter ancestry'] '(?i)\$ancestryExit\s*=\s*\$LASTEXITCODE\b' 'M00 assigns the ancestry result from the Git exit status'
-      Assert-Match $stageByName['Starter ancestry'] '(?i)if\s*\(\s*\$ancestryExit\s+-ne\s+0\s*\)\s*\{\s*(?:throw\b|exit\s+[1-9]\d*)' 'M00 fails closed when starter ancestry is not proven'
+      $starterActionCommand = Get-OneActionPowerShellCommand $stageByName['Starter ancestry']
+      Assert-True ($null -ne $starterActionCommand) 'M00 isolates one executable Starter ancestry action command'
+      if ($null -ne $starterActionCommand) {
+        Assert-Match $starterActionCommand '^git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD(?:;|$)' 'M00 action checks exact starter ancestry'
+        Assert-True (Test-M00StarterAncestryCommand $starterActionCommand) 'M00 action preserves exact Git capture, evidence, and nonzero-guard data flow'
+      }
+
+      $hardCodedZeroCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = 0; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $hardCodedZeroCommand)) 'M00 validator rejects a hard-coded ancestry result'
+
+      $proseDecoyStage = @'
+Expected relationship: `$ancestryExit = $LASTEXITCODE`.
+**One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = 0; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }`.
+'@
+      Assert-True (-not (Test-M00StarterAncestryCommand (Get-OneActionPowerShellCommand $proseDecoyStage))) 'M00 validator rejects an assignment present only in prose'
+
+      $commentDecoyCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = 0 <# $ancestryExit = $LASTEXITCODE #>; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $commentDecoyCommand)) 'M00 validator rejects an assignment present only in a comment'
+
+      $stringDecoyCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = 0; ''$ancestryExit = $LASTEXITCODE''; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $stringDecoyCommand)) 'M00 validator rejects an assignment present only in a string'
+
+      $crossLineDecoyStage = @'
+**One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit
+= $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }`.
+'@
+      Assert-True (-not (Test-M00StarterAncestryCommand (Get-OneActionPowerShellCommand $crossLineDecoyStage))) 'M00 validator rejects cross-line assignment tokens'
+
+      $clobberedLastExitCodeCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; cmd /c exit 0; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $clobberedLastExitCodeCommand)) 'M00 validator rejects an intervening LASTEXITCODE clobber'
+
+      $overwrittenAncestryCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Set-Variable -Name ancestryExit -Value 0; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $overwrittenAncestryCommand)) 'M00 validator rejects an ancestryExit overwrite before the guard'
+
+      $unreachableThrowCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { exit 0; throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $unreachableThrowCommand)) 'M00 validator rejects an unreachable fail-closed statement'
+
+      $exitingThrowOperandCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw $(exit 0) }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $exitingThrowOperandCommand)) 'M00 validator rejects a successful exit inside the throw operand'
+
+      $trappedThrowOperandCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw $(trap { exit 0 }; throw "inner") }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $trappedThrowOperandCommand)) 'M00 validator rejects a trap inside the throw operand'
+
+      $trappedThrowCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; trap { continue }; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $trappedThrowCommand)) 'M00 validator rejects a trap that swallows the ancestry failure'
+
+      $wrongHeadCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD~1; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $wrongHeadCommand)) 'M00 validator rejects a different ancestry target'
+
+      $commentEvidenceCommand = 'git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; <# starter-ancestry-exit=$ancestryExit #>; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }'
+      Assert-True (-not (Test-M00StarterAncestryCommand $commentEvidenceCommand)) 'M00 validator rejects evidence text present only in a comment'
+
+      $hiddenActionStage = @'
+<!-- **One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }`. -->
+'@
+      Assert-True ($null -eq (Get-OneActionPowerShellCommand $hiddenActionStage)) 'M00 extractor ignores an action hidden in an HTML comment'
+
+      $fencedActionStage = @'
+```powershell
+**One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }`.
+```
+'@
+      Assert-True ($null -eq (Get-OneActionPowerShellCommand $fencedActionStage)) 'M00 extractor ignores an action hidden in a fenced example'
+
+      $mixedFenceStage = @'
+```text
+~~~
+**One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }`.
+```
+'@
+      Assert-True ($null -eq (Get-OneActionPowerShellCommand $mixedFenceStage)) 'M00 extractor keeps mixed fence markers inside the opening fence'
+
+      $hiddenHtmlStage = @'
+<div hidden>
+**One action:** Run `git merge-base --is-ancestor starter/salesflow-guided-v1 HEAD; $ancestryExit = $LASTEXITCODE; Write-Output "starter-ancestry-exit=$ancestryExit"; if ($ancestryExit -ne 0) { throw "starter ancestry failed" }`.
+</div>
+'@
+      Assert-True ($null -eq (Get-OneActionPowerShellCommand $hiddenHtmlStage)) 'M00 extractor ignores an action hidden in a raw HTML block'
       Assert-Match $stageByName['Clean state'] '(?m)^\*\*One action:\*\* Run `git status --short`\.$' 'M00 working-tree state is observable'
       Assert-True (-not ($lesson -match '(?i)\bworktree\b')) 'M00 uses Working tree rather than the ambiguous worktree synonym'
     }
