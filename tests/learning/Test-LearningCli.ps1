@@ -136,6 +136,29 @@ try {
     Assert-True ($null -ne $resume.PSObject.Properties[$name]) "resume reports $name"
   }
 
+  $sequenceFixture = New-CliFixture 'sequence'
+  $m00Sentinel = Join-Path $sequenceFixture 'm00-checkpoint-ran'
+  $null = Set-TestScript $sequenceFixture "[IO.File]::WriteAllText((Join-Path `$PWD 'm00-checkpoint-ran'), 'ran')`r`nWrite-Output 'LEARNING_EVIDENCE=[]'`r`nexit 0`r`n"
+  $null = Get-SuccessJson (Invoke-Cli $sequenceFixture @('status')) 'sequence fixture status'
+  $beforeInactiveCheck = [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $sequenceFixture '.learning/progress.json')))
+  $inactiveCheck = Invoke-Cli $sequenceFixture @('check')
+  Assert-True ($inactiveCheck.ExitCode -ne 0) 'check before start exits nonzero'
+  Assert-True (-not [string]::IsNullOrWhiteSpace($inactiveCheck.Stderr)) 'check before start uses stderr'
+  Assert-True ([string]::IsNullOrWhiteSpace($inactiveCheck.Stdout)) 'check before start emits no result JSON'
+  Assert-True (-not (Test-Path -LiteralPath $m00Sentinel)) 'check before start does not launch checkpoint'
+  Assert-True (([Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $sequenceFixture '.learning/progress.json')))) -ceq $beforeInactiveCheck) 'check before start leaves progress unchanged'
+
+  $null = Get-SuccessJson (Invoke-Cli $sequenceFixture @('start', 'M00')) 'sequence fixture start'
+  $m01Script = Join-Path $sequenceFixture 'tests/learning/checkpoints/Test-M01.ps1'
+  [IO.File]::WriteAllText($m01Script, "[IO.File]::WriteAllText((Join-Path `$PWD 'm01-checkpoint-ran'), 'ran')`r`nWrite-Output 'LEARNING_EVIDENCE=[]'`r`nexit 0`r`n", [Text.UTF8Encoding]::new($false))
+  $beforeWrongCheck = [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $sequenceFixture '.learning/progress.json')))
+  $wrongCheck = Invoke-Cli $sequenceFixture @('check', 'M01')
+  Assert-True ($wrongCheck.ExitCode -ne 0) 'locked wrong-milestone check exits nonzero'
+  Assert-True (-not [string]::IsNullOrWhiteSpace($wrongCheck.Stderr)) 'locked wrong-milestone check uses stderr'
+  Assert-True ([string]::IsNullOrWhiteSpace($wrongCheck.Stdout)) 'locked wrong-milestone check emits no result JSON'
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $sequenceFixture 'm01-checkpoint-ran'))) 'locked wrong-milestone check does not launch checkpoint'
+  Assert-True (([Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $sequenceFixture '.learning/progress.json')))) -ceq $beforeWrongCheck) 'locked wrong-milestone check leaves progress unchanged'
+
   $protocolFixture = New-CliFixture 'protocol'
   $null = Get-SuccessJson (Invoke-Cli $protocolFixture @('start', 'M00')) 'protocol fixture start'
   Assert-ProtocolFailureDoesNotMutate $protocolFixture "Write-Output 'ordinary output'`r`nexit 0`r`n" 'missing evidence'
@@ -155,6 +178,18 @@ try {
   $progress = Read-Progress $protocolFixture
   Assert-Equal $progress.milestones.M00.lastCheckResult $false 'failed check is recorded where required'
   Assert-Equal (@($progress.milestones.M00.evidenceRevision) -join ',') 'failed-check' 'failed check evidence is recorded'
+
+  $null = Set-TestScript $protocolFixture "Write-Output 'LEARNING_EVIDENCE=[`"silent-failure`"]'`r`nexit 7`r`n"
+  $silentFailure = Invoke-Cli $protocolFixture @('check')
+  Assert-Equal $silentFailure.ExitCode 7 'silent failed child exit code propagates exactly'
+  Assert-Match $silentFailure.Stderr 'Checkpoint M00 failed with exit code 7' 'silent failed child gets synthesized stderr diagnostic'
+  $silentLines = @($silentFailure.Stdout -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  Assert-Equal $silentLines.Count 1 'silent failed check emits one JSON result line'
+  $silentJson = $silentLines[0] | ConvertFrom-Json
+  Assert-True (-not $silentJson.passed) 'silent failed check JSON reports false'
+  $progress = Read-Progress $protocolFixture
+  Assert-Equal $progress.milestones.M00.lastCheckResult $false 'silent failed check is recorded'
+  Assert-Equal (@($progress.milestones.M00.evidenceRevision) -join ',') 'silent-failure' 'silent failed check evidence is recorded'
 
   $boundaryFixture = New-CliFixture 'boundary'
   $null = Get-SuccessJson (Invoke-Cli $boundaryFixture @('start', 'M00')) 'boundary fixture start'

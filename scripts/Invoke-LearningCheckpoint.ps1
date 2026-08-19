@@ -138,7 +138,9 @@ try {
     throw 'Checkpoint LEARNING_EVIDENCE JSON root must be an array.'
   }
 
-  if (-not [string]::IsNullOrEmpty($child.Stderr)) {
+  if (($child.ExitCode -ne 0) -and [string]::IsNullOrWhiteSpace($child.Stderr)) {
+    [Console]::Error.WriteLine("Checkpoint $Milestone failed with exit code $($child.ExitCode).")
+  } elseif (-not [string]::IsNullOrEmpty($child.Stderr)) {
     [Console]::Error.Write($child.Stderr)
   }
   $result = [pscustomobject]@{

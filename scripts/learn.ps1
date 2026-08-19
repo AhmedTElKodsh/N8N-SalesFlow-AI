@@ -186,6 +186,10 @@ try {
       })
     }
     'check' {
+      $state = Get-MilestoneState -Progress $progress -MilestoneId $milestoneId
+      if (($progress.currentMilestone -cne $milestoneId) -or ($state.status -cne 'active')) {
+        throw "Learning milestone $milestoneId is not the active current milestone."
+      }
       $runnerPath = Join-Path $PSScriptRoot 'Invoke-LearningCheckpoint.ps1'
       $runner = Invoke-RunnerProcess -RunnerPath $runnerPath -Root $context.RepositoryRoot -MilestoneId $milestoneId
       $result = Convert-RunnerResult -Runner $runner -ExpectedMilestone $milestoneId
@@ -195,7 +199,11 @@ try {
         throw $detail
       }
       $progress = Record-LearningCheck -Context $context -MilestoneId $milestoneId -Passed $result.passed -Evidence @($result.evidence)
-      if (-not [string]::IsNullOrEmpty($runner.Stderr)) { [Console]::Error.Write($runner.Stderr) }
+      if (($runner.ExitCode -ne 0) -and [string]::IsNullOrWhiteSpace($runner.Stderr)) {
+        [Console]::Error.WriteLine("Checkpoint $milestoneId failed with exit code $($runner.ExitCode).")
+      } elseif (-not [string]::IsNullOrEmpty($runner.Stderr)) {
+        [Console]::Error.Write($runner.Stderr)
+      }
       Write-JsonResult $result
       if ($runner.ExitCode -ne 0) { exit $runner.ExitCode }
     }
