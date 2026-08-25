@@ -6,7 +6,7 @@
 | --- | --- | ---: | --- | --- |
 | `01-whatsapp-ingress.json` | `salesflow-wf-01` | 15 | POST `salesflow/test/whatsapp-intake` and POST `salesflow/inbound` | Test-only WhatsApp-shaped protocol proof plus atomic staging ingest; valid text survives unsupported sibling events. |
 | `02-conversation-orchestrator.json` | `salesflow-wf-02` | 7 | Execute Workflow | Completes one turn and invokes workflow 03 or 06. |
-| `03-outbox-dispatcher.json` | `salesflow-wf-03` | 9 | Execute Workflow or POST `salesflow/dispatch` | Claim, authorize, recheck, synthetic send, finish. |
+| `03-outbox-dispatcher.json` | `salesflow-wf-03` | 9 | Execute Workflow or POST `salesflow/dispatch` | Claim, atomic final authorization/call-start, synthetic send, finish; only a newly started call reaches the adapter. |
 | `04-whatsapp-status.json` | `salesflow-wf-04` | 3 | POST `salesflow/status` | Account-bound, idempotent, monotonic provider status with explicit HTTP outcomes. |
 | `05-follow-up-scheduler.json` | `salesflow-wf-05` | 8 | UTC Schedule or POST `salesflow/followups` | Finds due/retry work across enabled accounts and invokes workflow 03/06. |
 | `06-handoff-dispatcher.json` | `salesflow-wf-06` | 9 | Execute Workflow or POST `salesflow/handoff` | Claim, recheck, synthetic Handoff, finish. |
@@ -37,13 +37,15 @@ The manifest rejects extra node types. `Set` is used only for deterministic synt
 | Authentication/configuration | `actor_for`, `bootstrap`, `validate_config`, `save_config`, `activate_config`, `set_control` |
 | Consent/ingress | `set_consent`, `ingest` |
 | Turn processing | `complete_turn` — claims ordered work; for AI replies, snapshots granted consent, both active business versions, and bounded inbound-history references before creating one intent |
-| Outbox | `authorization_reason`, `claim_dispatch`, `recheck_dispatch`, `finish_dispatch` |
+| Outbox | `authorization_reason`, `claim_dispatch`, `begin_provider_call`, `recheck_dispatch`, `finish_dispatch` |
 | Provider status | `callback` |
 | Follow-Up/recovery | `schedule_followups`, `schedule_work` |
 | Handoff | `claim_handoff`, `recheck_handoff`, `finish_handoff` |
 | Operations | `operations` |
 
 `database/001-initial.sql` is idempotent and keeps one effective definition for each public function signature.
+
+Outbound authority is split deliberately: `claim_dispatch` grants temporary ownership, while `begin_provider_call` reruns authorization and commits the unique call-start immediately before the adapter. `finish_dispatch` can only complete that matching call. `schedule_work` reclaims expired pre-start leases but converts expired post-start work to reconciliation, and `callback` can reconcile a matching provider identity without resending.
 
 ## Configuration contracts
 
@@ -53,7 +55,7 @@ Saving and activation are separate operator actions exposed through the existing
 
 Publication is serialized per account and kind with a bounded database lock. The caller supplies the active version it expects; if another approval wins first, the stale request is rejected, and lock contention returns a typed busy result instead of waiting indefinitely. `config_docs.active` may change only inside the activation command, so direct updates cannot bypass approval or audit.
 
-At response time, Product Knowledge and Sales Policy stay independently publishable. Response assembly takes their activation locks in deterministic order with a five-second bound, then selects the currently active rows together; contention restores the Turn and returns `busy`, and absence fails closed. The ephemeral drafting payload contains up to ten same-Conversation processing bodies within 32 KiB, skipping non-fitting predecessors while continuing to older candidates; an oversized current inbound is denied. The intent persists both versions and minimized references only. Its identity, source, versions, body, and provenance are immutable after creation except the controlled privacy-deletion body/provenance minimization.
+At response time, Product Knowledge and Sales Policy stay independently publishable, but the active Release Set is the authority for which pair may be used together. Response assembly takes all three activation locks in deterministic order with a five-second bound, then selects the active rows in one transaction. Contention restores the Turn and returns `busy`; absence returns `missing_business_context`; and a document pair that conflicts with the active Release Set returns `inconsistent_business_context`. The ephemeral drafting payload contains up to ten same-Conversation processing bodies within 32 KiB, skipping non-fitting predecessors while continuing to older candidates; an oversized current inbound is denied. The intent persists Release Set, business-version, consent-evidence, and message references only. Its identity, source, versions, body, and provenance are immutable after creation except the controlled privacy-deletion body/provenance minimization.
 
 ### Product Knowledge (`product-knowledge.json`, kind `product_knowledge`)
 
