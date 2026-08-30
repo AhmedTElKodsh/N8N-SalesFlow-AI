@@ -6,7 +6,7 @@ The repository now contains a complete, reproducible **synthetic-local implement
 
 This is not a production approval. The adapters are deterministic local substitutes, and `release/release-manifest.json` keeps `livePromotionAllowed` set to `false`. Real Meta delivery, a selected production LLM, the CRM/Handoff contract, managed PostgreSQL controls, approved sales and knowledge content, legal/privacy approval, and a named production owner remain external gates.
 
-The original executive DOCX remains the source proposal. Because it was open in Word and locked during this update, [PRD_ N8N Sales AI Agent - Updated 2026-07-15.docx](../PRD_%20N8N%20Sales%20AI%20Agent%20-%20Updated%202026-07-15.docx) is the dated copy containing the implementation-status addendum. Product authority remains in the canonical planning pack at [_bmad-output/planning-artifacts/README.md](../_bmad-output/planning-artifacts/README.md); observed implementation documentation starts at [index.md](./index.md).
+The original executive DOCX remains the source proposal. Because it was open in Word and locked during this update, [PRD_ N8N Sales AI Agent - Updated 2026-07-15.docx](../PRD_%20N8N%20Sales%20AI%20Agent%20-%20Updated%202026-07-15.docx) is the dated copy containing the implementation-status addendum. Product authority starts at the [planning artifacts index](../_bmad-output/planning-artifacts/index.md); story specifications and evidence start at the [implementation artifacts index](../_bmad-output/implementation-artifacts/index.md); observed implementation documentation starts at [index.md](./index.md).
 
 ## Binding product boundary
 

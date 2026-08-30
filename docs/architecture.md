@@ -13,8 +13,9 @@ flowchart LR
   ING --> ORCH["Conversation orchestrator"]
   ORCH --> OUT["Persisted outbound intent"]
   ORCH --> HAND["Persisted Handoff"]
-  OUT --> GATE["Claim and final recheck"]
-  GATE --> SYN["Synthetic local provider"]
+  OUT --> GATE["Claim and atomic final authorization"]
+  GATE --> START["Durable unique provider-call start"]
+  START --> SYN["Synthetic local provider"]
   SYN --> FIN["Persisted terminal/retry state"]
   HAND --> HGATE["Claim and final Handoff recheck"]
   HGATE --> HSYN["Synthetic Handoff adapter"]
@@ -36,17 +37,19 @@ flowchart LR
 
 ## Workflow topology
 
-1. `01-whatsapp-ingress` calls `salesflow.ingest` and starts the orchestrator only for a new accepted event.
-2. `02-conversation-orchestrator` calls `salesflow.complete_turn`, then routes created work to the outbox or Handoff dispatcher.
-3. `03-outbox-dispatcher` claims, authorizes, rechecks, runs the synthetic provider, and finishes the intent.
-4. `04-whatsapp-status` binds callbacks to an existing provider ID and preserves monotonic status.
-5. `05-follow-up-scheduler` runs in UTC, discovers all-account due/retry work, and invokes the proper dispatcher.
+1. `01-whatsapp-ingress` calls `salesflow.ingest` and starts the orchestrator only after a committed `accepted=true, created=true` result. Its signed test WhatsApp route remains terminal staging and never starts orchestration.
+2. `02-conversation-orchestrator` calls `salesflow.complete_turn`, which claims committed Turns in database sequence. Handoff-only work follows its existing path; before AI drafting, PostgreSQL requires latest granted consent, locks the active Release Set and both active business documents together, rejects a pair that conflicts with that Release Set, and records a bounded same-Conversation inbound context snapshot with the resulting intent.
+3. `03-outbox-dispatcher` claims the intent, then atomically reruns current authorization and creates its one durable provider-call record. Only a newly created call-start reaches the synthetic provider; completion records accepted/failed/ambiguous evidence.
+4. `04-whatsapp-status` binds callbacks to an existing provider ID, preserves immutable event evidence and monotonic derived status, and can resolve an uncertain started call without resending it.
+5. `05-follow-up-scheduler` runs in UTC, discovers all-account due/retry work, invokes only work with no call-start, and moves expired post-start work to reconciliation.
 6. `06-handoff-dispatcher` claims, rechecks, runs the synthetic Handoff adapter, and finishes the Handoff.
 7. `07-error-and-operations` exposes account-bound evidence, deletion, and release commands.
 
 ## Data architecture
 
-The schema contains 19 tables grouped around account/configuration, Contact/Conversation state, work and provider evidence, and operations/release records. Composite `(account_ref, id)` ownership keys prevent cross-account joins. Unique provider IDs, sequence numbers, logical action keys, callback event IDs, and release pointers make replays deterministic.
+The schema contains 22 tables grouped around account/configuration, stable Customer/Contact identity, Conversation state, work and provider evidence, and operations/release records. Phone and provider references live in UUID-backed `contact_identifiers`, where explicit replacement retires the old reference without changing the Contact or Conversation UUID. Each inbound row retains immutable original text and a separately derived NFC/newline/outer-trim processing form. Composite `(account_ref, id)` ownership keys prevent cross-account joins. PostgreSQL-owned Conversation sequences, exact original-evidence retry checks, one provider-call row per logical intent, unique provider IDs, callback event IDs, and release pointers make replays deterministic even when provider timestamps arrive out of order.
+
+For an eligible reply, relevance is deterministic recency rather than semantic retrieval: the current inbound plus the newest predecessors that fit a maximum of ten messages and 32 KiB of processing text. A non-fitting predecessor is skipped so an older smaller message can still be selected; an oversized current message fails closed with `context_too_large`. Reads are constrained to the locked account/Conversation and `seq <=` the current source, then references are persisted in ascending sequence. Product Knowledge and Sales Policy remain independently publishable, but context assembly takes the same activation locks in deterministic order before its joined read, so it either uses the post-commit live pair or returns bounded `busy`. Processing text exists only in the ephemeral drafting payload; persisted provenance records consent, business versions, and references. Privacy deletion may later minimize referenced customer content and intent provenance.
 
 See [data-models.md](./data-models.md).
 
@@ -55,14 +58,15 @@ See [data-models.md](./data-models.md).
 - Runtime tokens are stored as hashes and mapped to scoped roles.
 - The workflow database role receives function execution, not direct table mutation.
 - Missing controls/configuration fail closed.
-- Claims and leases expire; retry budgets and backoff are configuration-driven.
-- Inbound replay conflicts, callback conflicts, and stale Conversation versions are rejected.
+- Missing/revoked consent or either active business document suppresses AI drafting with a typed minimized result; consent writes serialize with context creation under a bounded lock, consent timestamps are strictly monotonic per Contact, and provider-call start locks the Contact/Conversation plus the same consent, configuration, and stop-control authorities before its final authorization read.
+- Claims and leases expire; retry budgets and backoff are configuration-driven only before a provider call starts. A live post-start lease returns `already_started`; only an expired or explicitly ambiguous call becomes reconciliation-required and is never automatically resent.
+- Inbound replay conflicts are durably flagged without sender or message text; callback conflicts and stale Conversation versions are rejected.
 - Audit/provider evidence is append-only except narrowly scoped deletion minimization.
 - n8n execution payload persistence is disabled; generated credentials are ignored and deleted in `finally`.
 
 ## Testing strategy
 
-`tests/run.ps1` combines static manifest checks, migration idempotence, SQL assertions, concurrent workers, n8n import/activation/publication, connected endpoint calls, export identity checks, and cleanup verification. The current evidence records `PASS FULL PASS` for S01-S26 and race checks.
+`tests/run.ps1` combines static manifest checks, migration idempotence, SQL assertions, concurrent workers, commit-visibility checks, n8n import/activation/publication, connected endpoint calls, export identity checks, and cleanup verification. SP2-T2 proof covers strict typed input, Unicode and formatting preservation, the processing-form invariant, normal intake, concurrent duplicate retry, sender/body conflict, decreasing and equal provider timestamps, database-sequence consumption, deletion minimization, and the absence of retry/conflict downstream work. SP2-T3/SP3-T1 proof covers consent and business-context isolation, bounded context, publication races, and immutable versioned provenance. SP3-T2 proof covers the final authorization/call-start boundary, pre-start retry versus post-start reconciliation, 20 concurrent sends and deliveries, and a concurrent retry of those same 20 work IDs with zero additional calls or evidence.
 
 ## Deployment architecture
 

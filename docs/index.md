@@ -35,11 +35,13 @@ N8N SalesFlow AI is a policy-bound WhatsApp sales-assistance baseline. The repos
 
 - [Updated executive document](../PRD_%20N8N%20Sales%20AI%20Agent%20-%20Updated%202026-07-15.docx) — original proposal plus dated implementation-status and decision addendum.
 - [Operator README](../README.md) — local lifecycle and production gates.
-- [Planning index](../_bmad-output/planning-artifacts/README.md) — authority order and artifact status.
+- [Planning artifacts index](../_bmad-output/planning-artifacts/index.md) — product authority, roadmap, and architecture navigation.
+- [Implementation artifacts index](../_bmad-output/implementation-artifacts/index.md) — story specifications, baseline evidence, and deferred work.
 - [Canonical PRD](../_bmad-output/planning-artifacts/prds/prd-N8N-SalesFlow-AI-2026-07-14/prd.md) — product requirements and unresolved executive decisions.
 - [Architecture spine](../_bmad-output/planning-artifacts/architecture/architecture-N8N-SalesFlow-AI-2026-07-14/ARCHITECTURE-SPINE.md) — design invariants.
 - [Epic breakdown](../_bmad-output/planning-artifacts/epics.md) — complete delivery decomposition.
 - [Implementation specification](../_bmad-output/implementation-artifacts/spec-finish-and-test-n8n-workflow.md) — delivered local scope and acceptance criteria.
+- [Story 1.1 Meta ingress specification](../_bmad-output/implementation-artifacts/epic-1/spec-1-1-meta-staging-ingress.md) — first approval-gated production integration candidate.
 - [Local test evidence](../_bmad-output/implementation-artifacts/test-evidence.md) — current verified result and evidence boundary.
 
 ## Getting started

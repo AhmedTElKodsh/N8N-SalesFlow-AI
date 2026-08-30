@@ -5,11 +5,11 @@
 **Date:** 2026-07-14  
 **Purpose:** Verify that every material executive-source item was preserved, deliberately changed, deliberately excluded/deferred, or identified as missing. This document does not approve the changes; it makes their disposition visible.
 
-## Reconciliation verdict
+## Initial reconciliation verdict
 
 The rewritten PRD preserves the executive initiative's channel, orchestration role, durable conversation context, policy-aware behavior, Follow-Up, Handoff, audit, and core outcome. It deliberately narrows autonomous persuasion/negotiation into a controlled sales-assistance pilot and adds safety, reliability, privacy, and operational requirements missing from the source.
 
-Four source areas are not yet explicitly dispositioned: conversational/personalized tone, outbound document/interactive-message support, Follow-Up Revival Rate, and Average Handling Time through final closure. These are listed under **Silently disappeared or insufficiently reconciled**.
+At initial review, five source areas were not yet explicitly dispositioned: conversational/personalized tone, outbound document/interactive-message support, Follow-Up Revival Rate, Average Handling Time through final closure, and the direct customer contact link. They are listed under **Silently disappeared or insufficiently reconciled** and resolved near the end of this record.
 
 ## Source items preserved
 
@@ -95,4 +95,4 @@ The PRD/addendum now disposition all five gaps: bounded natural/non-aggressive t
 
 ## Reconciliation conclusion
 
-The rewrite is traceable and intentionally more conservative than the executive source. Before calling input reconciliation complete, the product owner should disposition Gaps 1–5. Gaps 2–4 affect MVP scope and measurement; Gaps 1 and 5 can be resolved as bounded quality and adapter requirements without restoring autonomous negotiation.
+The rewrite is traceable and intentionally more conservative than the executive source. Gaps 1–5 are dispositioned in the PRD/addendum as recorded above, so input reconciliation is complete. Product, Legal/Privacy, Commercial, and external-adapter approvals remain separate launch gates and are not implied by this reconciliation.
