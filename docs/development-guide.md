@@ -53,3 +53,40 @@ Get-ChildItem config,workflows,release,tests -Filter *.json -Recurse |
 # Run the complete executable contract
 powershell -ExecutionPolicy Bypass -File .\tests\run.ps1
 ```
+
+## Tutoring maintenance
+
+Treat the curriculum, milestone contracts, learner state, CLI, and focused checkpoints as one versioned interface. Before changing them, read `learning/tutor-contract.md`, identify the single milestone outcome being changed, and keep the learner-facing lesson limited to that milestone and its immediate prerequisite.
+
+`learning/curriculum.yaml` and every `checkpoint.yaml` use JSON-compatible YAML: the files must remain valid JSON so Windows PowerShell can parse them with `ConvertFrom-Json` without another runtime dependency. When adding or changing a milestone, update its curriculum entry, `lesson.md`, `hints.md`, checkpoint contract, and focused script together. Keep every `testScript` inside `tests/learning/checkpoints`; checkpoints must validate observable milestone outcomes rather than compare learner work with a completed solution.
+
+Run the focused maintenance checks from the repository root:
+
+```powershell
+# Tutor contract and curriculum structure
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\learning\Test-TutorContract.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\learning\Test-Curriculum.ps1
+
+# Durable state, CLI, and checkpoint runner behavior
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\learning\Test-LearningState.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\learning\Test-LearningCli.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\learning\Test-CheckpointSuite.ps1
+
+# Milestone documents, release hashes, and complete tutoring journey
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\learning\Test-MilestoneDocuments.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\learning\Test-ManifestHashing.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\learning\Test-TutoringAcceptance.ps1
+```
+
+Before merging a tutoring change, run every learning test:
+
+```powershell
+Get-ChildItem .\tests\learning\Test-*.ps1 | Sort-Object Name | ForEach-Object {
+  powershell -NoProfile -ExecutionPolicy Bypass -File $_.FullName
+  if ($LASTEXITCODE -ne 0) { throw "$($_.Name) failed" }
+}
+```
+
+The reference code is unavailable to ordinary tutoring. Learner-facing lessons and hints may point to the active learner branch, milestone contract, relevant documentation, and focused evidence, but they may not contain completed code or commands that extract completed files from the reference ref. Curriculum maintainers may inspect the reference only within the read-only boundary allowed by the tutor contract.
+
+Update `starter/salesflow-guided-v1` and `reference/salesflow-complete-v1` deliberately. Review the exact source commits, rerun the learning and release checks appropriate to each ref, update any recorded revisions or hashes, and verify the published refs resolve to those reviewed commits. Never move either ref as an incidental consequence of a curriculum edit.
