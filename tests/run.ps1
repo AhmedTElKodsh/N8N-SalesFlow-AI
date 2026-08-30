@@ -5,6 +5,11 @@ param(
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 Set-Location $root
+$rootIdentity=[IO.Path]::GetFullPath($root).TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar).ToLowerInvariant()
+$rootIdentityHasher=[Security.Cryptography.SHA256]::Create()
+try{$rootIdentityHash=([BitConverter]::ToString($rootIdentityHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($rootIdentity)))-replace'-','').Substring(0,12).ToLowerInvariant()}finally{$rootIdentityHasher.Dispose()}
+$composeProject="salesflow-$rootIdentityHash"
+$env:COMPOSE_PROJECT_NAME=$composeProject
 function Pass($m){Write-Host "PASS $m"}
 function Assert($c,$m){if(!$c){throw $m};Pass $m}
 function Native($m){Assert ($LASTEXITCODE-eq0) "$m exit"}
@@ -12,13 +17,13 @@ $generated=Join-Path $root '.generated'
 $localEnvFile=Join-Path $root '.env'
 $envFile=Join-Path $generated 'runtime.env'
 $failure=$null;$cleanupFailure=$null;$managedEnvironment=$false;$lockAcquired=$false
-$mutex=[Threading.Mutex]::new($false,'Local\N8NSalesFlowAIHarness')
+$mutex=[Threading.Mutex]::new($false,"Local\N8NSalesFlowAIHarness-$rootIdentityHash")
 try {
   # ponytail: one lock per Windows login session; use a checkout-scoped mutex if parallel clones matter.
   $lockAcquired=$mutex.WaitOne(0);if(-not$lockAcquired){throw 'Another SalesFlow harness is already running.'}
   if($ResetLocal-and-not$KeepRunning){throw '-ResetLocal requires -KeepRunning.'}
   docker info *> $null;Native 'Docker readiness'
-  $existingVolumes=@(docker volume ls --filter 'label=com.docker.compose.project=n8n-salesflow-ai' -q);Native 'local volume inventory'
+  $existingVolumes=@(docker volume ls --filter "label=com.docker.compose.project=$composeProject" -q);Native 'local volume inventory'
   $localEnvExists=Test-Path $localEnvFile
   if(($localEnvExists-or$existingVolumes)-and-not$ResetLocal){$recovery=if($localEnvExists-and$existingVolumes){'Resume with docker compose --env-file .env up -d'}else{'The local environment is incomplete'};throw "$recovery. Replace it explicitly with -KeepRunning -ResetLocal."}
   $manifest=Get-Content release/release-manifest.json -Raw|ConvertFrom-Json
@@ -37,7 +42,7 @@ try {
     $oldEnvFile=if($localEnvExists){$localEnvFile}else{Join-Path $root '.env.example'}
     $ErrorActionPreference='Continue'
     docker compose --env-file $oldEnvFile down -v --remove-orphans *> $null;Native 'existing local reset'
-    $remaining=@(docker volume ls --filter 'label=com.docker.compose.project=n8n-salesflow-ai' -q);Native 'reset volume inventory';Assert (-not$remaining) 'existing local volumes removed'
+  $remaining=@(docker volume ls --filter "label=com.docker.compose.project=$composeProject" -q);Native 'reset volume inventory';Assert (-not$remaining) 'existing local volumes removed'
     Remove-Item $localEnvFile -Force -ErrorAction SilentlyContinue
     $ErrorActionPreference='Stop'
   }
@@ -134,7 +139,7 @@ finally{
       if(-not$cleanupFailure){
         Remove-Item $generated -Recurse -Force -ErrorAction SilentlyContinue
         if(Test-Path $generated){$cleanupFailure='plaintext generated directory remains'}
-        $remaining=@(docker volume ls --filter 'label=com.docker.compose.project=n8n-salesflow-ai' -q)
+        $remaining=@(docker volume ls --filter "label=com.docker.compose.project=$composeProject" -q)
         if($LASTEXITCODE-ne0-or$remaining){$cleanupFailure='project volumes remain'}
       }
     }
