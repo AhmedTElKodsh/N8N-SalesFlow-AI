@@ -2,7 +2,7 @@
 title: 'Task 7 focused SalesFlow learning checkpoints'
 type: 'feature'
 created: '2026-08-19'
-status: 'in-review'
+status: 'done'
 review_loop_iteration: 0
 baseline_commit: '439c5965c81e6fafe7904bb68c698b1a1a8043e8'
 context:
@@ -49,11 +49,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `tests/learning/Test-CheckpointSuite.ps1` -- add the meta-test first and capture RED for eleven missing scripts.
+- [x] `tests/learning/Test-CheckpointSuite.ps1` -- add the meta-test first and capture RED for eleven missing scripts.
 - [x] `tests/learning/checkpoints/CheckpointSupport.ps1` -- add quiet native helpers for paths, JSON, SQL constructs, and workflow reachability.
 - [x] `tests/learning/checkpoints/Test-M00.ps1` through `Test-M09.ps1` -- implement the exact focused evidence contracts.
 - [x] `tests/learning/checkpoints/Test-M10.ps1` -- preflight M00-M09, announce cost, invoke `tests/run.ps1`, and require full-pass plus cleanup evidence; do not execute it in Task 7.
-- [ ] `.superpowers/sdd/2026-08-16-ai-guided-salesflow-tutoring-implementation/task-7-report.md` -- record RED, verification, known Task 8 failure, commit, and preserved dirt.
+- [x] `.superpowers/sdd/2026-08-16-ai-guided-salesflow-tutoring-implementation/task-7-report.md` -- record RED, verification, Task 8 resolution, commits, and preserved state.
 
 **Acceptance Criteria:**
 - Given the checkpoint scripts are absent, when the meta-test runs first, then it fails for exactly eleven missing validators.
@@ -75,3 +75,34 @@ Workflow checks identify semantically relevant nodes from node type and SQL func
 - `0..9 | ForEach-Object { powershell -ExecutionPolicy Bypass -File ".\tests\learning\checkpoints\Test-M$('{0:d2}' -f $_).ps1" -RepositoryRoot (Get-Location) }` -- each checkpoint emits one evidence line and exits 0.
 - Run all `tests/learning/Test-*.ps1` files -- learning suite green.
 - `powershell -ExecutionPolicy Bypass -File .\tests\run.ps1` -- run once; record the known Task 8 hashing failure if still present.
+
+**Final result:** All top-level tutoring tests pass. The disposable release harness reports `PASS FULL PASS`, `PASS plaintext generated credentials removed`, and `PASS container volumes removed`. M02, M03, M08, and M09 now prove their declared runtime outcomes; M00 remains learner-branch/ref specific and M01 remains live-environment specific by design.
+
+## Suggested Review Order
+
+**Checkpoint protocol and evidence alignment**
+
+- Start with repository isolation, classified failures, and shared structural readers.
+  [`CheckpointSupport.ps1:27`](../../tests/learning/checkpoints/CheckpointSupport.ps1#L27)
+
+- Exact milestone evidence arrays prevent implementation-detail labels from masquerading as outcomes.
+  [`Test-CheckpointSuite.ps1:108`](../../tests/learning/Test-CheckpointSuite.ps1#L108)
+
+**Runtime outcome closure**
+
+- Typed ingress preserves legacy identifiers while adding the milestone's event contract.
+  [`001-initial.sql:72`](../../database/001-initial.sql#L72)
+
+- Scoped retention minimizes expired messages and returns observable account-bound evidence.
+  [`001-initial.sql:134`](../../database/001-initial.sql#L134)
+
+- Runtime assertions independently prove accepted and eventId JSON types.
+  [`runtime.sql:10`](../../tests/runtime.sql#L10)
+
+**Cross-platform and journey acceptance**
+
+- Raw hashes now verify the actual LF materialized bytes on Windows.
+  [`Test-ManifestHashing.ps1:21`](../../tests/learning/Test-ManifestHashing.ps1#L21)
+
+- Fresh-process resume proves progress survives without chat history.
+  [`Test-TutoringAcceptance.ps1:109`](../../tests/learning/Test-TutoringAcceptance.ps1#L109)
