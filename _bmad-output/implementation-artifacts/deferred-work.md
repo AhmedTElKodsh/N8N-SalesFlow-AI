@@ -45,3 +45,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-task-7-focused-learning-checkpoints.md`
   summary: Close M09 retention active-release rollback and actionable-alert runtime evidence gaps.
   evidence: The current completed implementation lacks executable observed retention enforcement and sufficient runtime proof for the remaining responsible-operations outcomes.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-sp3-t3-automatic-follow-up-system.md`
+  summary: Make learning checkpoint SQL extraction resolve the effective final function definition regardless of CREATE versus CREATE OR REPLACE syntax.
+  evidence: CheckpointSupport.ps1 currently ignores plain CREATE FUNCTION replacements, so M06-M08 can inspect stale earlier migration bodies instead of the deployed definitions.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-sp3-t3-automatic-follow-up-system.md`
+  summary: Reconcile the M10 running-stack prerequisite with the disposable canonical harness precondition.
+  evidence: M10 requires M01 to observe running services and then launches a harness that refuses an existing checkout environment or may collide on port 5678.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-sp3-t3-automatic-follow-up-system.md`
+  summary: Enforce curriculum prerequisite ordering when validating and starting learning milestones.
+  evidence: Learning progress validation accepts a manually available later milestone without proving completion of its declared predecessors and understanding gates.

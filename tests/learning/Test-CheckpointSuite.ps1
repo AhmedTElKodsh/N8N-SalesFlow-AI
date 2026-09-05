@@ -17,6 +17,15 @@ if ($script:FailureCount -gt 0) {
 
 $supportPath = Join-Path $checkpointRoot 'CheckpointSupport.ps1'
 Assert-True (Test-Path -LiteralPath $supportPath -PathType Leaf) 'CheckpointSupport.ps1 exists'
+. $supportPath
+
+$syntheticSql = @'
+CREATE OR REPLACE FUNCTION public.sample_fn() RETURNS text LANGUAGE plpgsql AS $$BEGIN RETURN 'old'; END$$;
+CREATE FUNCTION "public"."sample_fn"() RETURNS text AS $body$BEGIN RETURN 'new'; END$body$ LANGUAGE plpgsql;
+'@
+$effectiveSample = Get-SqlFunctionBlock -Sql $syntheticSql -FunctionName 'sample_fn' -Location 'synthetic SQL extractor fixture'
+Assert-Match $effectiveSample "RETURN 'new'" 'SQL function extractor returns the final plain CREATE definition'
+Assert-Match $effectiveSample '\$body\$' 'SQL function extractor supports tagged dollar quoting'
 
 function Read-ScriptAst([string]$Path) {
   $tokens = $null
@@ -56,7 +65,11 @@ function Invoke-CheckpointFailure([string]$ScriptPath, [string]$InvalidRoot) {
     [void]$process.Start()
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
-    $process.WaitForExit()
+    if (-not $process.WaitForExit(15000)) {
+      try { & taskkill.exe /PID $process.Id /T /F *> $null } catch {}
+      [void]$process.WaitForExit(5000)
+      throw "Checkpoint failure probe exceeded 15000 ms: $ScriptPath"
+    }
     [pscustomobject]@{
       ExitCode = $process.ExitCode
       Stdout = $stdoutTask.Result
@@ -160,7 +173,7 @@ foreach ($index in 0..9) {
 $m10 = $parsed['Test-M10.ps1']
 Assert-True ((Get-ParameterNames $m10.Ast) -contains 'RepositoryRoot') 'Test-M10.ps1 accepts -RepositoryRoot'
 foreach ($indicator in @(
-  '0..9',
+  '2..9',
   'expected runtime',
   'tests/run.ps1',
   'PASS FULL PASS',
@@ -174,5 +187,32 @@ Assert-True (-not ($m10.Text -match '(?i)-(?:Reset|Keep)(?:\b|:)')) 'M10 does no
 $metaText = Get-Content -Raw -LiteralPath $PSCommandPath
 Assert-True (-not ($metaText -match '(?im)(?:-File|&)\s+[^\r\n]*Test-M10\.ps1')) 'meta-test contains no direct M10 process or call-operator invocation'
 Assert-Match $metaText '(?s)foreach\s*\(\$index\s+in\s+0\.\.9\).*?Invoke-CheckpointFailure' 'meta-test runtime failure probes are bounded to M00-M09'
+
+# Exercise the same snapshot boundary used by M10 without Docker or a real learner stack.
+$snapshotFixture = Join-Path ([IO.Path]::GetTempPath()) ('salesflow-capstone-' + [guid]::NewGuid().ToString('N'))
+$isolated = $null
+try {
+  foreach ($directory in @('release', 'tests', '.generated', '.learning')) { [void](New-Item -ItemType Directory -Path (Join-Path $snapshotFixture $directory) -Force) }
+  [IO.File]::WriteAllText((Join-Path $snapshotFixture '.env'), 'retained-local-secret-sentinel')
+  [IO.File]::WriteAllText((Join-Path $snapshotFixture '.generated/retained.txt'), 'retained-stack-sentinel')
+  [IO.File]::WriteAllText((Join-Path $snapshotFixture '.learning/progress.json'), '{"retained":true}')
+  [IO.File]::WriteAllText((Join-Path $snapshotFixture '.gitattributes'), '*.ps1 text eol=lf')
+  [IO.File]::WriteAllText((Join-Path $snapshotFixture 'tests/run.ps1'), 'Write-Output $PSScriptRoot')
+  [IO.File]::WriteAllText((Join-Path $snapshotFixture 'release/release-manifest.json'), '{"inputHashes":{"tests/run.ps1":"fixture"}}')
+  $isolated = New-CheckpointHarnessSnapshot $snapshotFixture
+  Assert-True ($isolated -ne $snapshotFixture) 'capstone harness gets a distinct checkout identity'
+  Assert-Equal (Get-Content -Raw (Join-Path $isolated 'tests/run.ps1')) 'Write-Output $PSScriptRoot' 'capstone copies current executable bytes'
+  foreach ($excluded in @('.env', '.generated', '.learning')) { Assert-True (-not (Test-Path (Join-Path $isolated $excluded))) "capstone excludes retained $excluded" }
+  $attributes = @(& git -C $isolated check-attr eol -- tests/run.ps1)
+  Assert-True ($LASTEXITCODE -eq 0 -and ($attributes -join '') -match 'eol: lf$') 'isolated harness retains Git attribute verification'
+  Remove-CheckpointHarnessSnapshot $isolated
+  Assert-True (-not (Test-Path $isolated)) 'capstone cleanup removes only its disposable checkout'
+  Assert-Equal (Get-Content -Raw (Join-Path $snapshotFixture '.env')) 'retained-local-secret-sentinel' 'capstone cleanup preserves retained learner environment'
+  Assert-Equal (Get-Content -Raw (Join-Path $snapshotFixture '.generated/retained.txt')) 'retained-stack-sentinel' 'capstone cleanup preserves retained stack artifacts'
+  $isolated = $null
+} finally {
+  if ($null -ne $isolated) { Remove-CheckpointHarnessSnapshot $isolated }
+  Remove-CheckpointHarnessSnapshot $snapshotFixture
+}
 
 Complete-TestFile

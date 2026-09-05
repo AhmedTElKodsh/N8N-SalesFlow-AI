@@ -1,5 +1,52 @@
 Set-StrictMode -Version 2.0
 
+function New-CheckpointHarnessSnapshot {
+  param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
+
+  $manifestPath = Resolve-CheckpointPath $RepositoryRoot 'release/release-manifest.json'
+  $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+  $snapshot = Join-Path ([IO.Path]::GetTempPath()) ('salesflow-capstone-' + [guid]::NewGuid().ToString('N'))
+  [void](New-Item -ItemType Directory -Path $snapshot -ErrorAction Stop)
+  try {
+    # Copy only reviewed harness inputs. Never copy .env, .generated, .git, or learner progress.
+    $paths = @('.gitattributes', 'release/release-manifest.json') + @($manifest.inputHashes.PSObject.Properties.Name)
+    foreach ($relative in @($paths | Select-Object -Unique)) {
+      if ($relative -notin @('.gitattributes', '.env.example') -and $relative -notmatch '^(compose\.yaml|(?:config|database|scripts|tests|workflows|release)/[^.][^\\]*\.(?:json|sql|mjs|ps1|psm1|yaml))$') {
+        throw "Unsupported disposable harness input: $relative"
+      }
+      $source = Resolve-CheckpointPath $RepositoryRoot $relative
+      $destination = [IO.Path]::GetFullPath((Join-Path $snapshot $relative))
+      if (-not $destination.StartsWith($snapshot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Snapshot input escapes disposable root.' }
+      [void](New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force)
+      Copy-Item -LiteralPath $source -Destination $destination -ErrorAction Stop
+    }
+    & git -C $snapshot init --quiet
+    if ($LASTEXITCODE -ne 0) { throw 'Disposable harness Git initialization failed.' }
+    $snapshot
+  } catch {
+    Remove-CheckpointHarnessSnapshot $snapshot
+    throw
+  }
+}
+
+function Remove-CheckpointHarnessSnapshot {
+  param([Parameter(Mandatory = $true)][string]$Snapshot)
+
+  $resolved = [IO.Path]::GetFullPath($Snapshot).TrimEnd('\', '/')
+  $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+  if ((Split-Path -Parent $resolved) -ne $temporaryRoot -or (Split-Path -Leaf $resolved) -notmatch '^salesflow-capstone-[0-9a-f]{32}$') {
+    throw 'Refusing cleanup outside a disposable capstone directory.'
+  }
+  if (Test-Path -LiteralPath (Join-Path $resolved '.generated/runtime.env')) {
+    throw "Disposable harness recovery state retained at $resolved; cleanup did not finish."
+  }
+  if (Test-Path -LiteralPath $resolved) {
+    $items = @(Get-Item -LiteralPath $resolved -Force) + @(Get-ChildItem -LiteralPath $resolved -Recurse -Force)
+    if (@($items | Where-Object { ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 }).Count) { throw 'Refusing recursive cleanup through a reparse point.' }
+    Remove-Item -LiteralPath $resolved -Recurse -Force -ErrorAction Stop
+  }
+}
+
 function Assert-CheckpointInvariant {
   param(
     [Parameter(Mandatory = $true)][bool]$Condition,
@@ -125,8 +172,10 @@ function Get-SqlFunctionBlock {
     [string]$Location = 'database/001-initial.sql'
   )
 
-  $pattern = '(?is)CREATE\s+OR\s+REPLACE\s+FUNCTION\s+' +
-    [regex]::Escape($FunctionName) + '\b.*?\$\$;'
+  $qualifiedName = '(?:(?:"[^"]+"|[A-Za-z_][A-Za-z0-9_$]*)\s*\.\s*)?' +
+    '(?:"' + [regex]::Escape($FunctionName) + '"|' + [regex]::Escape($FunctionName) + ')'
+  $pattern = '(?is)CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+' + $qualifiedName +
+    '\s*\(.*?\bAS\s+(?<Delimiter>\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$).*?\k<Delimiter>.*?;'
   $matches = [regex]::Matches($Sql, $pattern)
   Assert-CheckpointInvariant ($matches.Count -gt 0) 'Behavioral checkpoint failure' "migration declares function $FunctionName" 'function-definition-not-found' $Location
   $matches[$matches.Count - 1].Value
@@ -229,8 +278,8 @@ function Invoke-NativeCaptured {
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
     if (-not $process.WaitForExit($TimeoutMilliseconds)) {
-      try { $process.Kill() } catch {}
-      $process.WaitForExit()
+      try { & taskkill.exe /PID $process.Id /T /F *> $null } catch {}
+      if (-not $process.WaitForExit(5000)) { try { $process.Kill() } catch {}; [void]$process.WaitForExit(5000) }
       throw [TimeoutException]::new("native command exceeded $TimeoutMilliseconds ms: $FilePath")
     }
     [pscustomobject]@{

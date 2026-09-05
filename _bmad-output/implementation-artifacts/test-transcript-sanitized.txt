@@ -1,0 +1,38 @@
+SalesFlow whole-repository fix verification transcript
+Captured: 2026-09-03T21:34:57+03:00
+Baseline HEAD: 0ac5bbbd0b406303744427a0c7da6b2af047f33a
+Snapshot type: dirty working tree; committed and uncommitted changes reviewed together
+External-provider boundary: no Meta, LLM, Handoff-provider, deployment, or production calls performed
+
+Provider-free learning suites
+Command: pwsh -NoLogo -NoProfile -File tests/learning/Test-*.ps1 (each file, sorted, separate process)
+Result: PASS Test-CheckpointSuite.ps1
+Result: PASS Test-Curriculum.ps1
+Result: PASS Test-LearningCli.ps1
+Result: PASS Test-LearningState.ps1
+Result: PASS Test-ManifestHashing.ps1
+Result: PASS Test-MilestoneDocuments.ps1
+Result: PASS Test-TutorContract.ps1
+Result: PASS Test-TutoringAcceptance.ps1
+Result: ALL_PROVIDER_FREE_TESTS_PASS
+
+Static validation
+Command: ConvertFrom-Json for config, release, workflows, and learning JSON files
+Result: JSON_PARSE_PASS count=19
+Command: System.Management.Automation.Language.Parser for scripts and tests PowerShell files
+Result: POWERSHELL_PARSE_PASS count=25
+Command: docker compose -f compose.yaml config with COMPOSE_PROJECT_NAME=salesflow-static-check
+Result: COMPOSE_CONFIG_PASS
+Command: git diff --check
+Result: GIT_DIFF_CHECK_PASS (line-ending conversion warnings only)
+
+Manifest validation
+Command: pwsh -NoLogo -NoProfile -File tests/learning/Test-ManifestHashing.ps1
+Result: PASS for every declared raw input hash, including database/001-initial.sql and config/release-set.json
+Activation manifest SHA-256: d37e1281a94f71ab96c7c701813e8d1a0d06b037fb4c0c68501143652939d1d9
+Promotion boundary: livePromotionAllowed=false
+
+Runtime boundary
+Command: docker info --format {{json .ServerVersion}}
+Result: NOT RUNNABLE - Docker Desktop Linux engine named pipe was unavailable
+Consequence: database migration execution, runtime SQL boundaries, n8n import/export, concurrency races, special-character password rotation, cleanup, and PASS FULL PASS remain unverified on this snapshot.

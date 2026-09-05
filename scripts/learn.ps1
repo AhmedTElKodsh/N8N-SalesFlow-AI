@@ -17,7 +17,10 @@ param(
   [AllowEmptyString()]
   [string]$TransferEvidence,
 
-  [string]$RepositoryRoot = (Split-Path -Parent $PSScriptRoot)
+  [AllowEmptyString()]
+  [string]$DirectSolutionTransferEvidence,
+
+  [string]$RepositoryRoot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -58,7 +61,26 @@ function Get-GitSnapshot([string]$Root) {
   [pscustomobject]@{ branch = $branch; workingTreeState = $workingTreeState }
 }
 
-function Invoke-RunnerProcess([string]$RunnerPath, [string]$Root, [string]$MilestoneId) {
+function Assert-LearningLineage([string]$Root, $Progress) {
+  $git = Get-Command git.exe -ErrorAction SilentlyContinue
+  if ($null -eq $git) { $git = Get-Command git -ErrorAction SilentlyContinue }
+  if ($null -eq $git) { throw 'Git is required for learning commands.' }
+  $inside = @(& $git.Source -c "safe.directory=$Root" -C $Root rev-parse --is-inside-work-tree 2>$null)
+  if (($LASTEXITCODE -ne 0) -or (($inside -join '').Trim() -cne 'true')) { throw 'Learning repository root must be a Git working tree.' }
+  $top = @(& $git.Source -c "safe.directory=$Root" -C $Root rev-parse --show-toplevel 2>$null)
+  if (($LASTEXITCODE -ne 0) -or ([IO.Path]::GetFullPath(($top -join '').Trim()).TrimEnd('\','/') -cne [IO.Path]::GetFullPath($Root).TrimEnd('\','/'))) {
+    throw 'Learning commands must run at the Git worktree root.'
+  }
+  $branch = (@(& $git.Source -c "safe.directory=$Root" -C $Root branch --show-current 2>$null) -join '').Trim()
+  if (($LASTEXITCODE -ne 0) -or [string]::IsNullOrWhiteSpace($branch)) { throw 'Learning commands require a named learner branch.' }
+  if ($branch -ceq 'main') { throw 'Learning commands cannot run on main; create a learner branch from the starter ref.' }
+  & $git.Source -c "safe.directory=$Root" -C $Root rev-parse --verify --quiet "$($Progress.starterRevision)^{commit}" *> $null
+  if ($LASTEXITCODE -ne 0) { throw "Learning starter ref '$($Progress.starterRevision)' does not resolve to a commit." }
+  & $git.Source -c "safe.directory=$Root" -C $Root merge-base --is-ancestor $Progress.starterRevision HEAD *> $null
+  if ($LASTEXITCODE -ne 0) { throw 'The learner branch is not descended from the configured starter ref.' }
+}
+
+function Invoke-RunnerProcess([string]$RunnerPath, [string]$Root, [string]$MilestoneId, [int]$TimeoutMilliseconds = 930000) {
   function Quote-Native([string]$Value) {
     if ($Value.Contains('"')) { throw 'A native path contains an unsupported quote character.' }
     '"' + $Value + '"'
@@ -83,7 +105,11 @@ function Invoke-RunnerProcess([string]$RunnerPath, [string]$Root, [string]$Miles
     $null = $process.Start()
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
-    $process.WaitForExit()
+    if (-not $process.WaitForExit($TimeoutMilliseconds)) {
+      try { & taskkill.exe /PID $process.Id /T /F *> $null } catch {}
+      if (-not $process.WaitForExit(5000)) { try { $process.Kill() } catch {} }
+      throw "Learning checkpoint runner exceeded the $TimeoutMilliseconds ms execution limit."
+    }
     [pscustomobject]@{
       ExitCode = $process.ExitCode
       Stdout = $stdoutTask.Result
@@ -133,7 +159,10 @@ try {
 
   $modulePath = Join-Path $PSScriptRoot 'LearningState.psm1'
   Import-Module $modulePath -Force -DisableNameChecking -ErrorAction Stop
+  if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) { $RepositoryRoot = Split-Path -Parent $PSScriptRoot }
   $context = Get-LearningContext -RepositoryRoot $RepositoryRoot
+  $curriculum = Get-Content -Raw -LiteralPath $context.CurriculumPath | ConvertFrom-Json -ErrorAction Stop
+  Assert-LearningLineage -Root $context.RepositoryRoot -Progress ([pscustomobject]@{ starterRevision = $curriculum.starterRef })
   $progress = Initialize-LearningProgress -Context $context
   $milestoneId = Resolve-Milestone -Progress $progress -RequestedMilestone $Milestone
 
@@ -208,7 +237,7 @@ try {
       if ($runner.ExitCode -ne 0) { exit $runner.ExitCode }
     }
     'complete' {
-      $progress = Complete-LearningMilestone -Context $context -MilestoneId $milestoneId -Explanation $Explanation -FailureMode $FailureMode -TransferEvidence $TransferEvidence
+      $progress = Complete-LearningMilestone -Context $context -MilestoneId $milestoneId -Explanation $Explanation -FailureMode $FailureMode -TransferEvidence $TransferEvidence -DirectSolutionTransferEvidence $DirectSolutionTransferEvidence
       Write-JsonResult ([pscustomobject]@{
         command = 'complete'
         completedMilestone = $milestoneId

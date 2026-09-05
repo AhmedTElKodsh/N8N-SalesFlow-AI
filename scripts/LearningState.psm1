@@ -19,7 +19,11 @@ function Read-LearningJson {
   if (-not (Test-Path -LiteralPath $Path -PathType Leaf -ErrorAction Stop)) {
     throw "$Description missing: $Path"
   }
-  Get-Content -Raw -LiteralPath $Path -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+  $json = Get-Content -Raw -LiteralPath $Path -ErrorAction Stop
+  if ((Get-Command ConvertFrom-Json -ErrorAction Stop).Parameters.ContainsKey('DateKind')) {
+    return $json | ConvertFrom-Json -DateKind String -ErrorAction Stop
+  }
+  $json | ConvertFrom-Json -ErrorAction Stop
 }
 
 function Test-LearningInteger {
@@ -55,6 +59,22 @@ function Assert-LearningNullableString {
   if (($null -ne $Value) -and -not ($Value -is [string])) {
     throw "$Description must be a string or null."
   }
+}
+
+function Test-LearningPrerequisitesCompleted {
+  param(
+    [Parameter(Mandatory = $true)]$Progress,
+    [Parameter(Mandatory = $true)]$Curriculum,
+    [Parameter(Mandatory = $true)][string]$MilestoneId
+  )
+
+  $entry = @($Curriculum.milestones | Where-Object { $_.id -ceq $MilestoneId })
+  if ($entry.Count -ne 1) { throw "Learning milestone $MilestoneId is absent from the curriculum." }
+  foreach ($prerequisiteId in @($entry[0].prerequisites)) {
+    $property = $Progress.milestones.PSObject.Properties[[string]$prerequisiteId]
+    if (($null -eq $property) -or ($property.Value.status -cne 'completed')) { return $false }
+  }
+  $true
 }
 
 function Assert-LearningProgress {
@@ -118,6 +138,10 @@ function Assert-LearningProgress {
     )) {
       $null = Get-RequiredLearningProperty -Object $milestone -Name $requiredName -Description "Learning milestone $milestoneId"
     }
+    $directTransferProperty = $milestone.PSObject.Properties['directSolutionTransferEvidence']
+    if ($null -ne $directTransferProperty) {
+      Assert-LearningNullableString -Value $directTransferProperty.Value -Description "Learning milestone $milestoneId directSolutionTransferEvidence"
+    }
 
     if (($milestone.status -isnot [string]) -or ($allowedStatuses -notcontains $milestone.status)) {
       throw "Learning milestone $milestoneId has invalid status '$($milestone.status)'."
@@ -165,6 +189,10 @@ function Assert-LearningProgress {
     }
     if (($milestone.status -ne 'completed') -and $milestone.understandingGate) {
       throw "Incomplete learning milestone $milestoneId cannot have a passed understanding gate."
+    }
+    if (($milestone.status -in @('available', 'active', 'completed')) -and
+        -not (Test-LearningPrerequisitesCompleted -Progress $Progress -Curriculum $Curriculum -MilestoneId $milestoneId)) {
+      throw "Learning milestone $milestoneId cannot be '$($milestone.status)' before every prerequisite is completed."
     }
   }
 
@@ -336,6 +364,10 @@ function Start-LearningMilestone {
     if ($milestone.status -ne 'available') {
       throw "Learning milestone $MilestoneId cannot start from status '$($milestone.status)'."
     }
+    $curriculum = Read-LearningJson -Path $lockedContext.CurriculumPath -Description 'Learning curriculum'
+    if (-not (Test-LearningPrerequisitesCompleted -Progress $progress -Curriculum $curriculum -MilestoneId $MilestoneId)) {
+      throw "Learning milestone $MilestoneId cannot start before every prerequisite is completed."
+    }
     $milestone.status = 'active'
     $milestone.attempts = [int]$milestone.attempts + 1
     $progress.currentMilestone = $MilestoneId
@@ -398,6 +430,9 @@ function Record-DirectSolutionRequest {
     $progress = Read-LearningProgress -Context $lockedContext
     $milestone = Get-ActiveLearningMilestoneState -Progress $progress -MilestoneId $MilestoneId
     $milestone.directSolutionRequested = $true
+    if ($null -eq $milestone.PSObject.Properties['directSolutionTransferEvidence']) {
+      $milestone | Add-Member -NotePropertyName directSolutionTransferEvidence -NotePropertyValue $null
+    }
     Save-LearningProgress -Context $lockedContext -Progress $progress
     $progress
   }
@@ -409,7 +444,8 @@ function Complete-LearningMilestone {
     [Parameter(Mandatory = $true)][string]$MilestoneId,
     [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Explanation,
     [Parameter(Mandatory = $true)][AllowEmptyString()][string]$FailureMode,
-    [Parameter(Mandatory = $true)][AllowEmptyString()][string]$TransferEvidence
+    [Parameter(Mandatory = $true)][AllowEmptyString()][string]$TransferEvidence,
+    [AllowEmptyString()][string]$DirectSolutionTransferEvidence
   )
 
   Invoke-WithLearningProgressLock -Context $Context -Action {
@@ -425,10 +461,17 @@ function Complete-LearningMilestone {
     if ([string]::IsNullOrWhiteSpace($Explanation)) { throw 'A learner explanation is required for completion.' }
     if ([string]::IsNullOrWhiteSpace($FailureMode)) { throw 'A learner failure mode is required for completion.' }
     if ([string]::IsNullOrWhiteSpace($TransferEvidence)) { throw 'Learner transfer evidence is required for completion.' }
+    if ($milestone.directSolutionRequested -and [string]::IsNullOrWhiteSpace($DirectSolutionTransferEvidence)) {
+      throw 'Additional learner transfer evidence is required after a direct solution.'
+    }
 
     $milestone.explanation = $Explanation
     $milestone.failureMode = $FailureMode
     $milestone.transferEvidence = $TransferEvidence
+    if ($null -eq $milestone.PSObject.Properties['directSolutionTransferEvidence']) {
+      $milestone | Add-Member -NotePropertyName directSolutionTransferEvidence -NotePropertyValue $null
+    }
+    $milestone.directSolutionTransferEvidence = if ($milestone.directSolutionRequested) { $DirectSolutionTransferEvidence } else { $null }
     $milestone.understandingGate = $true
     $milestone.status = 'completed'
     $curriculum = Read-LearningJson -Path $lockedContext.CurriculumPath -Description 'Learning curriculum'

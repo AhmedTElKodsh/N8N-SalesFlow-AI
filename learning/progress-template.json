@@ -5,7 +5,7 @@
   "starterRevision": null,
   "referenceRevision": null,
   "milestones": {
-    "M00": {"status":"available","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
+    "M00": {"status":"available","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"directSolutionTransferEvidence":null,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
     "M01": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
     "M02": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},
     "M03": {"status":"locked","attempts":0,"behaviorGate":false,"understandingGate":false,"highestHintLevel":0,"directSolutionRequested":false,"lastCheckAt":null,"lastCheckResult":null,"explanation":null,"failureMode":null,"transferEvidence":null,"evidenceRevision":null,"resumeNote":null},

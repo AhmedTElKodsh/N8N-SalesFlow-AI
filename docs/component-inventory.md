@@ -8,7 +8,7 @@
 | `02-conversation-orchestrator.json` | `salesflow-wf-02` | 7 | Execute Workflow | Completes one turn and invokes workflow 03 or 06. |
 | `03-outbox-dispatcher.json` | `salesflow-wf-03` | 9 | Execute Workflow or POST `salesflow/dispatch` | Claim, atomic final authorization/call-start, synthetic send, finish; only a newly started call reaches the adapter. |
 | `04-whatsapp-status.json` | `salesflow-wf-04` | 3 | POST `salesflow/status` | Account-bound, idempotent, monotonic provider status with explicit HTTP outcomes. |
-| `05-follow-up-scheduler.json` | `salesflow-wf-05` | 8 | UTC Schedule or POST `salesflow/followups` | Finds due/retry work across enabled accounts and invokes workflow 03/06. |
+| `05-follow-up-scheduler.json` | `salesflow-wf-05` | 8 | UTC Schedule or POST `salesflow/followups` | Runs the bounded all-account scheduler; PostgreSQL scans due jobs, records busy skips, reauthorizes, caps output at 50, and routes dispatch/Handoff work. |
 | `06-handoff-dispatcher.json` | `salesflow-wf-06` | 9 | Execute Workflow or POST `salesflow/handoff` | Claim, recheck, synthetic Handoff, finish. |
 | `07-error-and-operations.json` | `salesflow-wf-07` | 3 | POST `salesflow/operations` | Evidence, deletion, release, and audited configuration publication commands. |
 
@@ -39,13 +39,15 @@ The manifest rejects extra node types. `Set` is used only for deterministic synt
 | Turn processing | `complete_turn` — claims ordered work; for AI replies, snapshots granted consent, both active business versions, and bounded inbound-history references before creating one intent |
 | Outbox | `authorization_reason`, `claim_dispatch`, `begin_provider_call`, `recheck_dispatch`, `finish_dispatch` |
 | Provider status | `callback` |
-| Follow-Up/recovery | `schedule_followups`, `schedule_work` |
+| Follow-Up/recovery | `create_followup_after_sent`, `followup_due_authorization_reason`, `followup_final_authorization_reason`, `try_claim_followup_candidate`, `schedule_followups`, `schedule_work`, `followup_metrics` |
 | Handoff | `claim_handoff`, `recheck_handoff`, `finish_handoff` |
 | Operations | `operations` |
 
 `database/001-initial.sql` is idempotent and keeps one effective definition for each public function signature.
 
 Outbound authority is split deliberately: `claim_dispatch` grants temporary ownership, while `begin_provider_call` reruns authorization and commits the unique call-start immediately before the adapter. `finish_dispatch` can only complete that matching call. `schedule_work` reclaims expired pre-start leases but converts expired post-start work to reconciliation, and `callback` can reconcile a matching provider identity without resending.
+
+Automatic Follow-Up scheduling is database-owned. Sent completion creates one immutable +12-hour parent only when current scheduling authority still matches the reply. New inbound, consent/control/account/Conversation changes, identifier replacement, or a disabled campaign serialize through the same Conversation-first authority protocol. At due time and provider-call start, an active WhatsApp/Meta identifier and every current policy/template/frequency authority must still exist. Durable due, reconciliation, and projection cursors traverse fixed high-water cycles, wrap fairly, and checkpoint without aborting work when a cursor row is busy; each invocation retains the 50-success ceiling. The parent reaches `call_started` before its provider-call row becomes visible, advances monotonically from `sent` to `delivered` or `failed`, and reaches terminal denial/exhaustion before the child intent is suppressed. Pre-call exhaustion never claims an ambiguous provider call.
 
 ## Configuration contracts
 
@@ -91,10 +93,13 @@ At response time, Product Knowledge and Sales Policy stay independently publisha
 | `serviceWindowHours` | Contact window after inbound consent, from `1` through `168` hours. | `24` |
 | `optOutSignals` | A non-empty list of text signals that stop automation. | `["stop","unsubscribe"]` |
 | `humanSignals` | A non-empty list of text signals that request a human. It cannot overlap `optOutSignals`, ignoring letter case. | `["human","agent"]` |
-| `templates` | A list of provider-owned template references; it does not store message wording. | `[{"key":"followup-en","approved":true,"windowHours":24}]` |
+| `templates` | A list of provider-owned template references and provider metadata; it does not store message wording. | `[{"key":"followup-en","approved":true,"windowHours":24,"providerTemplateId":"followup-en","category":"marketing","language":"en"}]` |
 | `templates[].key` | Non-empty provider template identifier. | `followup-en` |
 | `templates[].approved` | `true` or `false`; only approved references are eligible for sending. | `true` |
 | `templates[].windowHours` | Template eligibility window from `1` through `168` hours. | `24` |
+| `templates[].providerTemplateId` | Non-empty provider-managed identity. The approved synthetic Follow-Up contract requires `followup-en`. | `followup-en` |
+| `templates[].category` | Provider category. Allowed structural values are `marketing`, `utility`, or `authentication`; the approved synthetic Follow-Up contract requires `marketing`. | `marketing` |
+| `templates[].language` | Non-empty provider language code. The approved synthetic Follow-Up contract requires `en`. | `en` |
 
 ### Handoff Dispatch Settings (`handoff.json`, kind `handoff`)
 

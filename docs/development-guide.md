@@ -4,7 +4,7 @@
 
 - Docker Desktop with Compose
 - Windows PowerShell 5.1 or PowerShell 7
-- Free local ports required by Docker; n8n binds to `127.0.0.1:5678`
+- Docker can allocate a free loopback port; resolve n8n with `docker compose port n8n 5678`
 
 No npm, Python, or application dependency installation is required for the canonical path.
 

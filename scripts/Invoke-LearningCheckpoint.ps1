@@ -4,7 +4,10 @@ param(
   [ValidatePattern('^M(?:0[0-9]|10)$')]
   [string]$Milestone,
 
-  [string]$RepositoryRoot = (Split-Path -Parent $PSScriptRoot)
+  [string]$RepositoryRoot,
+
+  [ValidateRange(100, 1800000)]
+  [int]$TimeoutMilliseconds = 900000
 )
 
 $ErrorActionPreference = 'Stop'
@@ -45,7 +48,15 @@ function ConvertTo-NativeQuotedArgument([string]$Value) {
   '"' + $Value + '"'
 }
 
-function Invoke-CheckpointProcess([string]$ScriptPath, [string]$WorkingDirectory) {
+function Stop-CheckpointProcess([Diagnostics.Process]$Process) {
+  try { & taskkill.exe /PID $Process.Id /T /F *> $null } catch {}
+  if (-not $Process.WaitForExit(5000)) {
+    try { $Process.Kill() } catch {}
+    if (-not $Process.WaitForExit(5000)) { throw 'Checkpoint process could not be terminated within the cleanup bound.' }
+  }
+}
+
+function Invoke-CheckpointProcess([string]$ScriptPath, [string]$WorkingDirectory, [int]$Timeout) {
   $startInfo = [Diagnostics.ProcessStartInfo]::new()
   $startInfo.FileName = (Get-Command powershell.exe -ErrorAction Stop).Source
   $startInfo.Arguments = @(
@@ -67,7 +78,10 @@ function Invoke-CheckpointProcess([string]$ScriptPath, [string]$WorkingDirectory
     $null = $process.Start()
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
-    $process.WaitForExit()
+    if (-not $process.WaitForExit($Timeout)) {
+      Stop-CheckpointProcess -Process $process
+      throw "Checkpoint exceeded the $Timeout ms execution limit."
+    }
     [pscustomobject]@{
       ExitCode = $process.ExitCode
       Stdout = $stdoutTask.Result
@@ -79,6 +93,7 @@ function Invoke-CheckpointProcess([string]$ScriptPath, [string]$WorkingDirectory
 }
 
 try {
+  if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) { $RepositoryRoot = Split-Path -Parent $PSScriptRoot }
   $root = (Resolve-Path -LiteralPath $RepositoryRoot -ErrorAction Stop).Path
   $curriculumPath = Join-Path $root 'learning/curriculum.yaml'
   if (-not (Test-Path -LiteralPath $curriculumPath -PathType Leaf)) {
@@ -119,10 +134,48 @@ try {
   Assert-NoReparsePoint -Parent $testsRoot -Candidate $resolvedCandidate
 
   $timer = [Diagnostics.Stopwatch]::StartNew()
-  $child = Invoke-CheckpointProcess -ScriptPath $resolvedCandidate -WorkingDirectory $root
+  try {
+    $child = Invoke-CheckpointProcess -ScriptPath $resolvedCandidate -WorkingDirectory $root -Timeout $TimeoutMilliseconds
+  } catch {
+    $timer.Stop()
+    [Console]::Error.WriteLine($_.Exception.Message)
+    Write-Output ([pscustomobject]@{
+      passed = $false
+      milestone = $Milestone
+      evidence = @()
+      durationMs = [int64]$timer.ElapsedMilliseconds
+    } | ConvertTo-Json -Depth 20 -Compress)
+    exit 1
+  }
   $timer.Stop()
 
   $evidenceLines = @($child.Stdout -split "`r?`n" | Where-Object { $_ -match '^LEARNING_EVIDENCE=' })
+  # Failure is authoritative even when a checkpoint cannot emit success evidence.
+  # Preserve valid legacy failure evidence, but never let malformed/missing
+  # evidence hide a nonzero result and leave an earlier behavior pass usable.
+  if ($child.ExitCode -ne 0) {
+    $failureEvidence = @()
+    if ($evidenceLines.Count -eq 1) {
+      try {
+        Add-Type -AssemblyName System.Web.Extensions -ErrorAction Stop
+        $failureSerializer = [Web.Script.Serialization.JavaScriptSerializer]::new()
+        $parsedFailureEvidence = $failureSerializer.DeserializeObject($evidenceLines[0].Substring('LEARNING_EVIDENCE='.Length))
+        if ($parsedFailureEvidence -is [System.Array]) { $failureEvidence = @($parsedFailureEvidence) }
+      } catch { }
+    }
+    if ([string]::IsNullOrWhiteSpace($child.Stderr)) {
+      [Console]::Error.WriteLine("Checkpoint $Milestone failed with exit code $($child.ExitCode).")
+    } else {
+      [Console]::Error.Write($child.Stderr)
+    }
+    Write-Output ([pscustomobject]@{
+      passed = $false
+      milestone = $Milestone
+      evidence = @($failureEvidence)
+      durationMs = [int64]$timer.ElapsedMilliseconds
+    } | ConvertTo-Json -Depth 20 -Compress)
+    exit $child.ExitCode
+  }
   if ($evidenceLines.Count -ne 1) {
     throw "Checkpoint must emit exactly one LEARNING_EVIDENCE=<json-array> line on stdout; observed $($evidenceLines.Count)."
   }

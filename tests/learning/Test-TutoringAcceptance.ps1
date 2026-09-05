@@ -16,7 +16,7 @@ function Invoke-ExternalPowerShell([string]$ScriptPath, [string[]]$Arguments = @
   $command = ($invocation -join ' ') + '; exit $LASTEXITCODE'
   $startInfo = [Diagnostics.ProcessStartInfo]::new()
   $startInfo.FileName = (Get-Command powershell.exe -ErrorAction Stop).Source
-  $startInfo.Arguments = '-NoLogo -NoProfile -NonInteractive -Command "' + $command.Replace('"', '\"') + '"'
+  $startInfo.Arguments = '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' + $command.Replace('"', '\"') + '"'
   $startInfo.UseShellExecute = $false
   $startInfo.CreateNoWindow = $true
   $startInfo.RedirectStandardOutput = $true
@@ -27,7 +27,11 @@ function Invoke-ExternalPowerShell([string]$ScriptPath, [string[]]$Arguments = @
     $null = $process.Start()
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
-    $process.WaitForExit()
+    if (-not $process.WaitForExit(60000)) {
+      try { & taskkill.exe /PID $process.Id /T /F *> $null } catch {}
+      [void]$process.WaitForExit(5000)
+      throw "External PowerShell acceptance process exceeded 60000 ms: $ScriptPath"
+    }
     [pscustomobject]@{
       ExitCode = $process.ExitCode
       Stdout = $stdoutTask.Result
@@ -79,6 +83,15 @@ try {
   $fixtureContract = Get-Content -Raw -LiteralPath $fixtureContractPath | ConvertFrom-Json
   $fixtureContract.testScript = 'tests/learning/checkpoints/Test-M00-AcceptanceFixture.ps1'
   [IO.File]::WriteAllText($fixtureContractPath, ($fixtureContract | ConvertTo-Json -Depth 20), [Text.UTF8Encoding]::new($false))
+
+  & git -c "safe.directory=$temp" -C $temp init -q -b main
+  & git -c "safe.directory=$temp" -C $temp config user.email 'learning-tests@example.invalid'
+  & git -c "safe.directory=$temp" -C $temp config user.name 'Learning Tests'
+  & git -c "safe.directory=$temp" -C $temp add .
+  & git -c "safe.directory=$temp" -C $temp commit -q -m starter
+  & git -c "safe.directory=$temp" -C $temp branch 'starter/salesflow-guided-v1'
+  & git -c "safe.directory=$temp" -C $temp switch -q -c learner/acceptance
+  if ($LASTEXITCODE -ne 0) { throw 'Failed to initialize tutoring acceptance Git fixture.' }
 
   $status = Get-SuccessJson (Invoke-Cli $temp @('status')) 'clean initialization'
   Assert-Equal $status.currentMilestone 'M00' 'clean initialization selects M00'

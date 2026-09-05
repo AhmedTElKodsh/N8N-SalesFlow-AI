@@ -32,7 +32,7 @@ Run the same verified path and retain the healthy containers, volumes, and ignor
 powershell -ExecutionPolicy Bypass -File .\tests\run.ps1 -KeepRunning
 ```
 
-Open <http://127.0.0.1:5678>. Resume a stopped stack with `docker compose --env-file .env up -d`. The command refuses to overwrite an existing local environment; use `-KeepRunning -ResetLocal` only when you intend to delete and rebuild its data.
+The harness prints the checkout-specific loopback URL after Docker assigns n8n a free local port. Resume a stopped stack with the retained `COMPOSE_PROJECT_NAME` and `docker compose --env-file .env up -d`, then resolve the URL with `docker compose --env-file .env port n8n 5678`. The command refuses to overwrite an existing local environment; use `-KeepRunning -ResetLocal` only when you intend to delete and rebuild its data.
 
 The retained `.env` contains local database and encryption secrets in plaintext. It is Git-ignored, but use this mode only on a trusted development account and never copy that file to chat, source control, or a shared machine.
 
@@ -43,9 +43,11 @@ The automated harness is the canonical path because it generates disposable secr
 ```powershell
 Copy-Item .env.example .env
 # Edit .env and set every blank password, N8N_ENCRYPTION_KEY, and SCHEDULER_TOKEN.
+$env:COMPOSE_PROJECT_NAME = 'salesflow-' + [guid]::NewGuid().ToString('N').Substring(0,12)
 $envMap = @{}; Get-Content .env | Where-Object { $_ -match '^[^#=]+=' } | ForEach-Object { $key, $value = $_ -split '=', 2; $envMap[$key] = $value }
 docker compose --env-file .env up -d postgres --wait
-$migration = (Get-Content database/001-initial.sql -Raw).Replace('__MIGRATION_PASSWORD__', $envMap.MIGRATION_PASSWORD).Replace('__WORKFLOW_DB_PASSWORD__', $envMap.WORKFLOW_DB_PASSWORD).Replace('__N8N_DB_PASSWORD__', $envMap.N8N_DB_PASSWORD)
+$utf8 = [Text.Encoding]::UTF8
+$migration = (Get-Content database/001-initial.sql -Raw).Replace('__MIGRATION_PASSWORD_B64__', [Convert]::ToBase64String($utf8.GetBytes($envMap.MIGRATION_PASSWORD))).Replace('__WORKFLOW_DB_PASSWORD_B64__', [Convert]::ToBase64String($utf8.GetBytes($envMap.WORKFLOW_DB_PASSWORD))).Replace('__N8N_DB_PASSWORD_B64__', [Convert]::ToBase64String($utf8.GetBytes($envMap.N8N_DB_PASSWORD)))
 $migration | docker compose --env-file .env exec -T postgres psql -U $envMap.POSTGRES_SUPERUSER -d $envMap.POSTGRES_DB -v ON_ERROR_STOP=1
 if ($LASTEXITCODE) { throw 'Migration failed; n8n was not started.' }
 docker compose --env-file .env up -d n8n

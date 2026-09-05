@@ -5,6 +5,10 @@ $ErrorActionPreference = 'Stop'
 
 try {
   $root = Resolve-CheckpointRepositoryRoot $RepositoryRoot
+  $rootIdentity = [IO.Path]::GetFullPath($root).TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar).ToLowerInvariant()
+  $hasher = [Security.Cryptography.SHA256]::Create()
+  try { $rootHash = (([BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($rootIdentity)))) -replace '-', '').Substring(0,12).ToLowerInvariant() } finally { $hasher.Dispose() }
+  $env:COMPOSE_PROJECT_NAME = "salesflow-$rootHash"
   $docker = Get-Command docker.exe -ErrorAction SilentlyContinue
   if ($null -eq $docker) { $docker = Get-Command docker -ErrorAction SilentlyContinue }
   Assert-CheckpointInvariant ($null -ne $docker) 'Environment or tooling failure' 'Docker CLI is available for read-only reachability checks' 'docker-command-not-found' $root
@@ -55,12 +59,17 @@ try {
   $n8nState = if ($null -eq $n8nRow) { '<missing>' } else { [string]$n8nRow.State }
   Assert-CheckpointInvariant ($null -ne $postgresRow -and $postgresState -eq 'running' -and $postgresHealth -eq 'healthy') 'Behavioral checkpoint failure' 'PostgreSQL service is running and healthy' ("state=$postgresState; health=$postgresHealth") 'docker compose ps postgres'
   Assert-CheckpointInvariant ($null -ne $n8nRow -and $n8nState -eq 'running') 'Behavioral checkpoint failure' 'n8n service container is running after its healthy PostgreSQL dependency' "state=$n8nState" 'docker compose ps n8n'
+  $portResult = Invoke-NativeCaptured $docker.Source @('compose', '--file', $composePath, '--env-file', $envPath, 'port', 'n8n', '5678') $root
+  Assert-NativeSuccess $portResult 'Docker Compose resolves the checkout-scoped n8n port' 'docker compose port n8n 5678'
+  $published = $portResult.Stdout.Trim()
+  Assert-CheckpointInvariant ($published -match '^127\.0\.0\.1:(?<port>[0-9]+)$') 'Behavioral checkpoint failure' 'n8n publishes only on IPv4 loopback' $published 'compose.yaml services.n8n.ports'
+  $healthUri = "http://127.0.0.1:$($Matches.port)/healthz"
   try {
-    $n8nHealth = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:5678/healthz' -TimeoutSec 5 -ErrorAction Stop
+    $n8nHealth = Invoke-WebRequest -UseBasicParsing -Uri $healthUri -TimeoutSec 5 -ErrorAction Stop
   } catch {
-    Assert-CheckpointInvariant $false 'Environment or tooling failure' 'n8n health endpoint is reachable locally' $_.Exception.Message 'http://127.0.0.1:5678/healthz'
+    Assert-CheckpointInvariant $false 'Environment or tooling failure' 'n8n health endpoint is reachable locally' $_.Exception.Message $healthUri
   }
-  Assert-CheckpointInvariant ([int]$n8nHealth.StatusCode -eq 200) 'Behavioral checkpoint failure' 'n8n health endpoint reports HTTP 200' "status=$($n8nHealth.StatusCode)" 'http://127.0.0.1:5678/healthz'
+  Assert-CheckpointInvariant ([int]$n8nHealth.StatusCode -eq 200) 'Behavioral checkpoint failure' 'n8n health endpoint reports HTTP 200' "status=$($n8nHealth.StatusCode)" $healthUri
 
   Write-LearningEvidence @('postgres-health', 'n8n-health', 'local-services')
 } catch {

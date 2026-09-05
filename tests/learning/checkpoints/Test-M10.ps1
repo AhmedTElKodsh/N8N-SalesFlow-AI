@@ -2,12 +2,15 @@ param([string]$RepositoryRoot = (Get-Location).Path)
 
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/CheckpointSupport.ps1"
+$snapshot = $null
 
 try {
   $root = Resolve-CheckpointRepositoryRoot $RepositoryRoot
   $powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
 
-  foreach ($index in 0..9) {
+  # M01 checks the retained learner stack. The full harness below runs in a
+  # separate directory, giving it independent Compose resources and generated files.
+  foreach ($index in @(0) + @(2..9)) {
     $milestone = 'M{0:d2}' -f $index
     $checkpoint = Resolve-CheckpointPath $root ("tests/learning/checkpoints/Test-M{0:d2}.ps1" -f $index)
     $preflight = Invoke-NativeCaptured $powershell @('-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $checkpoint, '-RepositoryRoot', $root) $root
@@ -32,13 +35,19 @@ try {
   $context = Read-CheckpointText $root 'docs/project-context.md'
   $lesson = Read-CheckpointText $root 'learning/milestones/M10-capstone/lesson.md'
   Assert-CheckpointInvariant ($context -match 'Real Meta delivery' -and $context -match 'production LLM' -and $context -match 'managed PostgreSQL controls' -and $context -match 'production owner' -and $lesson -match '(?i)failure mode' -and $lesson -match '(?i)production gate') 'Behavioral checkpoint failure' 'capstone materials require failure analysis and enumerate external production gates' 'failure-analysis-or-production-gate-inventory-not-found' 'docs/project-context.md and learning/milestones/M10-capstone/lesson.md'
-  $full = Invoke-NativeCaptured $powershell @('-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $harness) $root
+  $snapshot = New-CheckpointHarnessSnapshot $root
+  $isolatedHarness = Join-Path $snapshot 'tests/run.ps1'
+  $full = Invoke-NativeCaptured $powershell @('-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $isolatedHarness) $snapshot
   Assert-CheckpointInvariant ($full.ExitCode -eq 0) 'Behavioral checkpoint failure' 'tests/run.ps1 exits zero' "exit=$($full.ExitCode);stderr=$($full.Stderr.Trim())" 'tests/run.ps1'
   Assert-CheckpointInvariant ($full.Stdout -match '(?m)^PASS FULL PASS\s*$') 'Behavioral checkpoint failure' 'full harness reports PASS FULL PASS' 'full-pass-marker-not-found' 'tests/run.ps1 output'
   Assert-CheckpointInvariant ($full.Stdout -match '(?m)^PASS plaintext generated credentials removed\s*$' -and $full.Stdout -match '(?m)^PASS container volumes removed\s*$') 'Behavioral checkpoint failure' 'full harness reports cleanup evidence for plaintext and disposable volumes' 'cleanup-evidence-not-found' 'tests/run.ps1 output'
 
+  Remove-CheckpointHarnessSnapshot $snapshot
+  $snapshot = $null
   Write-LearningEvidence @('complete-release-harness-exit-zero', 'complete-release-harness-full-pass-marker', 'complete-release-harness-cleanup-evidence', 'end-to-end-scenario-trace', 'failure-analysis-and-production-gates')
 } catch {
   Write-CheckpointFailure $_ $RepositoryRoot
   exit 1
+} finally {
+  if ($null -ne $snapshot) { Remove-CheckpointHarnessSnapshot $snapshot }
 }

@@ -1,0 +1,39 @@
+name: Provider-free checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  windows-checks:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Repository and learning checks
+        shell: pwsh
+        run: |
+          git diff --check
+          Get-ChildItem config,release,workflows -Recurse -Filter *.json | ForEach-Object {
+            Get-Content -Raw -LiteralPath $_.FullName | ConvertFrom-Json -ErrorAction Stop | Out-Null
+          }
+          Get-ChildItem scripts,tests -Recurse -Include *.ps1,*.psm1 | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [void][Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors.Count) { throw "$($_.FullName): $($errors.Message -join '; ')" }
+          }
+          Get-ChildItem tests/learning/Test-*.ps1 | ForEach-Object {
+            & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $_.FullName
+            if ($LASTEXITCODE) { throw "$($_.Name) failed with exit $LASTEXITCODE" }
+          }
+
+  compose-model:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose model without starting services
+        env:
+          COMPOSE_PROJECT_NAME: salesflow-ci
+        run: docker compose --env-file .env.example config --quiet

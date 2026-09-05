@@ -173,6 +173,10 @@ try {
     param($progress)
     $progress.milestones.PSObject.Properties.Remove('M10')
   } -Operation { param($corruptContext) Initialize-LearningProgress -Context $corruptContext }
+  Assert-CorruptProgressRejected -Parent $temp -Name 'available-with-incomplete-prerequisite' -Corrupt {
+    param($progress)
+    $progress.milestones.M02.status = 'available'
+  } -Operation { param($corruptContext) Initialize-LearningProgress -Context $corruptContext }
 
   $malformedContext = New-LearningFixture -Parent $temp -Name 'malformed-json'
   [IO.File]::WriteAllText($malformedContext.ProgressPath, '{not-json', [Text.UTF8Encoding]::new($false))
@@ -251,6 +255,8 @@ try {
   Assert-Equal $p.milestones.M00.lastCheckResult $false 'failed check result recorded'
   Assert-Equal (@($p.milestones.M00.evidenceRevision) -join ',') 'orientation-failed' 'failed check evidence recorded'
   Assert-True (-not [string]::IsNullOrWhiteSpace($p.milestones.M00.lastCheckAt)) 'failed check timestamp recorded'
+  $validatedProgress = & (Get-Module LearningState) { param($context) Read-LearningProgress -Context $context } $ctx
+  Assert-True ($validatedProgress.milestones.M00.lastCheckAt -is [string]) 'validated progress preserves timestamp as JSON string'
   Assert-Throws {
     Complete-LearningMilestone -Context $ctx -MilestoneId M00 -Explanation 'x' -FailureMode 'y' -TransferEvidence 'z'
   } 'completion rejects false behavior gate'
@@ -295,7 +301,8 @@ try {
   $explanation = 'n8n routes;  PostgreSQL owns durable state'
   $failureMode = 'Workflow succeeds but persistence fails'
   $transferEvidence = 'Mapped a second webhook without rewriting the answer'
-  $null = Complete-LearningMilestone -Context $ctx -MilestoneId M00 -Explanation $explanation -FailureMode $failureMode -TransferEvidence $transferEvidence
+  $directSolutionTransferEvidence = 'Rebuilt the same behavior from a fresh scenario without copying the direct solution'
+  $null = Complete-LearningMilestone -Context $ctx -MilestoneId M00 -Explanation $explanation -FailureMode $failureMode -TransferEvidence $transferEvidence -DirectSolutionTransferEvidence $directSolutionTransferEvidence
   $p = Read-Progress $ctx
   Assert-Equal $p.milestones.M00.status 'completed' 'M00 completed'
   Assert-True $p.milestones.M00.understandingGate 'completion passes understanding gate'
@@ -303,6 +310,7 @@ try {
   Assert-Equal $p.milestones.M00.explanation $explanation 'completion preserves learner explanation exactly'
   Assert-Equal $p.milestones.M00.failureMode $failureMode 'completion preserves learner failure mode exactly'
   Assert-Equal $p.milestones.M00.transferEvidence $transferEvidence 'completion preserves learner transfer evidence exactly'
+  Assert-Equal $p.milestones.M00.directSolutionTransferEvidence $directSolutionTransferEvidence 'completion preserves post-solution transfer evidence exactly'
   Assert-Equal $p.currentMilestone 'M01' 'next milestone becomes current'
   Assert-Equal $p.milestones.M01.status 'available' 'immediate successor becomes available'
   Assert-Equal $p.milestones.M02.status 'locked' 'completion does not unlock later successors'

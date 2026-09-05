@@ -7,7 +7,7 @@ The repository implements a **disposable local verification environment**, not a
 | Service | Image | Exposure | State |
 | --- | --- | --- | --- |
 | PostgreSQL | Digest-pinned PostgreSQL 17.10 | Internal Compose network | Named local volume, removed by the test harness |
-| n8n | Digest-pinned n8n 2.30.4 | `127.0.0.1:5678` | Named local volume, removed by the test harness |
+| n8n | Digest-pinned n8n 2.30.4 | Dynamic port on `127.0.0.1` | Named local volume, removed by the test harness |
 
 The repository is mounted read-only into n8n. Generated import/export material uses `.generated/`, which is ignored and deleted in `finally`. n8n success, error, and manual execution payload persistence is disabled.
 

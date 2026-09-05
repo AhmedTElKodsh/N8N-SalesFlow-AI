@@ -7,7 +7,7 @@ function ConvertTo-PowerShellLiteral([string]$Value) {
   "'$($Value.Replace("'", "''"))'"
 }
 
-function Invoke-ExternalPowerShell([string]$ScriptPath, [string[]]$Arguments = @()) {
+function Invoke-ExternalPowerShell([string]$ScriptPath, [string[]]$Arguments = @(), [switch]$NativeFile) {
   $invocation = @('&', (ConvertTo-PowerShellLiteral $ScriptPath))
   foreach ($argument in $Arguments) {
     if ($argument -match '^-[A-Za-z][A-Za-z0-9-]*$') { $invocation += $argument }
@@ -16,7 +16,11 @@ function Invoke-ExternalPowerShell([string]$ScriptPath, [string[]]$Arguments = @
   $command = ($invocation -join ' ') + '; exit $LASTEXITCODE'
   $startInfo = [Diagnostics.ProcessStartInfo]::new()
   $startInfo.FileName = (Get-Command powershell.exe -ErrorAction Stop).Source
-  $startInfo.Arguments = '-NoLogo -NoProfile -NonInteractive -Command "' + $command.Replace('"', '\"') + '"'
+  $startInfo.Arguments = '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' + $command.Replace('"', '\"') + '"'
+  if ($NativeFile) {
+    $nativeArguments = @('-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $ScriptPath) + @($Arguments)
+    $startInfo.Arguments = (@($nativeArguments | ForEach-Object { '"' + ($_ -replace '(\\+)$', '$1$1') + '"' }) -join ' ')
+  }
   $startInfo.UseShellExecute = $false
   $startInfo.CreateNoWindow = $true
   $startInfo.RedirectStandardOutput = $true
@@ -27,7 +31,11 @@ function Invoke-ExternalPowerShell([string]$ScriptPath, [string[]]$Arguments = @
     $null = $process.Start()
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
-    $process.WaitForExit()
+    if (-not $process.WaitForExit(60000)) {
+      try { & taskkill.exe /PID $process.Id /T /F *> $null } catch {}
+      [void]$process.WaitForExit(5000)
+      throw "External PowerShell test process exceeded 60000 ms: $ScriptPath"
+    }
     [pscustomobject]@{
       ExitCode = $process.ExitCode
       Stdout = $stdoutTask.Result
@@ -81,6 +89,14 @@ function New-CliFixture([string]$Name) {
   Copy-Item -LiteralPath (Join-Path $repositoryRoot 'scripts/learn.ps1') -Destination (Join-Path $fixtureRoot 'scripts/learn.ps1')
   Copy-Item -LiteralPath (Join-Path $repositoryRoot 'learning') -Destination $fixtureRoot -Recurse
   $null = Set-TestScript -FixtureRoot $fixtureRoot -Content "Write-Output 'LEARNING_EVIDENCE=[`"fixture-pass`"]'`r`nexit 0`r`n"
+  & git -c "safe.directory=$fixtureRoot" -C $fixtureRoot init -q -b main
+  & git -c "safe.directory=$fixtureRoot" -C $fixtureRoot config user.email 'learning-tests@example.invalid'
+  & git -c "safe.directory=$fixtureRoot" -C $fixtureRoot config user.name 'Learning Tests'
+  & git -c "safe.directory=$fixtureRoot" -C $fixtureRoot add .
+  & git -c "safe.directory=$fixtureRoot" -C $fixtureRoot commit -q -m starter
+  & git -c "safe.directory=$fixtureRoot" -C $fixtureRoot branch 'starter/salesflow-guided-v1'
+  & git -c "safe.directory=$fixtureRoot" -C $fixtureRoot switch -q -c learner/test
+  if ($LASTEXITCODE -ne 0) { throw "Failed to initialize Git learning fixture: $fixtureRoot" }
   $fixtureRoot
 }
 
@@ -127,7 +143,9 @@ try {
   Assert-True ([string]::IsNullOrWhiteSpace($blank.Stdout)) 'blank understanding field emits no success JSON'
   Assert-True (([Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $fixture '.learning/progress.json')))) -ceq $beforeBlank) 'blank completion does not mutate progress'
 
-  $completed = Get-SuccessJson (Invoke-Cli $fixture @('complete', 'M00', '-Explanation', 'PostgreSQL owns durable state', '-FailureMode', 'The workflow can fail after dispatch', '-TransferEvidence', 'Mapped another synthetic webhook')) 'complete M00'
+  $missingDirectTransfer = Invoke-Cli $fixture @('complete', 'M00', '-Explanation', 'PostgreSQL owns durable state', '-FailureMode', 'The workflow can fail after dispatch', '-TransferEvidence', 'Mapped another synthetic webhook')
+  Assert-True ($missingDirectTransfer.ExitCode -ne 0) 'direct solution completion requires extra transfer evidence'
+  $completed = Get-SuccessJson (Invoke-Cli $fixture @('complete', 'M00', '-Explanation', 'PostgreSQL owns durable state', '-FailureMode', 'The workflow can fail after dispatch', '-TransferEvidence', 'Mapped another synthetic webhook', '-DirectSolutionTransferEvidence', 'Rebuilt the behavior from a fresh input')) 'complete M00'
   Assert-Equal $completed.completedMilestone 'M00' 'completion reports completed milestone'
   Assert-Equal $completed.currentMilestone 'M01' 'completion advances current milestone'
 
@@ -191,6 +209,30 @@ try {
   Assert-Equal $progress.milestones.M00.lastCheckResult $false 'silent failed check is recorded'
   Assert-Equal (@($progress.milestones.M00.evidenceRevision) -join ',') 'silent-failure' 'silent failed check evidence is recorded'
 
+  $realFailureFixture = New-CliFixture 'real-failure'
+  $null = Get-SuccessJson (Invoke-Cli $realFailureFixture @('start', 'M00')) 'real failure fixture start'
+  $null = Get-SuccessJson (Invoke-Cli $realFailureFixture @('check')) 'real failure fixture initial pass'
+  Copy-Item -LiteralPath (Join-Path $repositoryRoot 'tests/learning/checkpoints/Test-M00.ps1') -Destination (Join-Path $realFailureFixture 'tests/learning/checkpoints/Test-M00.ps1') -Force
+  Copy-Item -LiteralPath (Join-Path $repositoryRoot 'tests/learning/checkpoints/CheckpointSupport.ps1') -Destination (Join-Path $realFailureFixture 'tests/learning/checkpoints/CheckpointSupport.ps1')
+  # The real M00 checkpoint fails because this CLI fixture has no database directory.
+  $realFailure = Invoke-Cli $realFailureFixture @('check')
+  Assert-Equal $realFailure.ExitCode 1 'real no-evidence checkpoint fails'
+  Assert-Match $realFailure.Stderr 'Syntax or integration failure: Invariant=required checkpoint artifact exists; Observed=missing:database;' 'real classified diagnostic survives the runner'
+  $realFailureJson = $realFailure.Stdout | ConvertFrom-Json
+  Assert-True (-not $realFailureJson.passed) 'real failure emits failed result'
+  Assert-Equal @($realFailureJson.evidence).Count 0 'real failure needs no success evidence'
+  $progress = Read-Progress $realFailureFixture
+  Assert-True (-not $progress.milestones.M00.behaviorGate -and -not $progress.milestones.M00.lastCheckResult) 'real failure invalidates the previous behavior pass'
+  $staleCompletion = Invoke-Cli $realFailureFixture @('complete', '-Explanation', 'flow', '-FailureMode', 'failure', '-TransferEvidence', 'transfer')
+  Assert-True ($staleCompletion.ExitCode -ne 0) 'completion rejects the stale pass after real checkpoint failure'
+  Assert-Equal (Read-Progress $realFailureFixture).milestones.M01.status 'locked' 'failed behavior leaves successor locked'
+
+  $nativeFixture = New-CliFixture 'native-defaults'
+  $nativeStatus = Invoke-ExternalPowerShell -ScriptPath (Join-Path $nativeFixture 'scripts/learn.ps1') -Arguments @('status') -NativeFile
+  $null = Get-SuccessJson $nativeStatus 'native -File CLI resolves its default repository root'
+  $nativeRunner = Invoke-ExternalPowerShell -ScriptPath (Join-Path $nativeFixture 'scripts/Invoke-LearningCheckpoint.ps1') -Arguments @('-Milestone', 'M00') -NativeFile
+  $null = Get-SuccessJson $nativeRunner 'native -File runner resolves its default repository root'
+
   $boundaryFixture = New-CliFixture 'boundary'
   $null = Get-SuccessJson (Invoke-Cli $boundaryFixture @('start', 'M00')) 'boundary fixture start'
   $evilDirectory = Join-Path $boundaryFixture 'tests/learning/checkpoints-evil'
@@ -227,6 +269,45 @@ try {
   $invalidCommand = Invoke-Cli $boundaryFixture @('not-a-command')
   Assert-True ($invalidCommand.ExitCode -ne 0) 'validated command errors exit nonzero when invoked with call operator'
   Assert-True (-not [string]::IsNullOrWhiteSpace($invalidCommand.Stderr)) 'validated command error uses stderr'
+
+  $lineageFixture = New-CliFixture 'lineage'
+  & git -c "safe.directory=$lineageFixture" -C $lineageFixture switch -q main
+  $mainLineage = Invoke-Cli $lineageFixture @('status')
+  Assert-True ($mainLineage.ExitCode -ne 0) 'learning CLI rejects main branch'
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $lineageFixture '.learning/progress.json'))) 'first-use main rejection creates no progress'
+  & git -c "safe.directory=$lineageFixture" -C $lineageFixture switch -q learner/test
+  & git -c "safe.directory=$lineageFixture" -C $lineageFixture branch -D 'starter/salesflow-guided-v1' | Out-Null
+  $missingStarter = Invoke-Cli $lineageFixture @('status')
+  Assert-True ($missingStarter.ExitCode -ne 0) 'learning CLI rejects a missing starter ref'
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $lineageFixture '.learning/progress.json'))) 'first-use missing starter rejection creates no progress'
+  & git -c "safe.directory=$lineageFixture" -C $lineageFixture branch 'starter/salesflow-guided-v1' HEAD
+  & git -c "safe.directory=$lineageFixture" -C $lineageFixture checkout -q --detach HEAD
+  $detachedLineage = Invoke-Cli $lineageFixture @('status')
+  Assert-True ($detachedLineage.ExitCode -ne 0) 'learning CLI rejects detached HEAD'
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $lineageFixture '.learning/progress.json'))) 'first-use detached rejection creates no progress'
+
+  $timeoutFixture = New-CliFixture 'timeout'
+  $null = Set-TestScript -FixtureRoot $timeoutFixture -Content "Start-Sleep -Seconds 5`r`nWrite-Output 'LEARNING_EVIDENCE=[]'`r`n"
+  $timeoutResult = Invoke-ExternalPowerShell -ScriptPath (Join-Path $timeoutFixture 'scripts/Invoke-LearningCheckpoint.ps1') -Arguments @('-Milestone','M00','-RepositoryRoot',$timeoutFixture,'-TimeoutMilliseconds','200')
+  Assert-True ($timeoutResult.ExitCode -ne 0) 'checkpoint runner terminates an over-time child'
+  Assert-Match $timeoutResult.Stderr 'execution limit' 'checkpoint timeout returns a typed diagnostic'
+  $null = Set-TestScript -FixtureRoot $timeoutFixture -Content "Write-Output 'LEARNING_EVIDENCE=[`"initial-pass`"]'`r`n"
+  $null = Get-SuccessJson (Invoke-Cli $timeoutFixture @('start', 'M00')) 'timeout fixture start'
+  $null = Get-SuccessJson (Invoke-Cli $timeoutFixture @('check')) 'timeout fixture initial behavior pass'
+  $fixtureRunnerPath = Join-Path $timeoutFixture 'scripts/Invoke-LearningCheckpoint.ps1'
+  $fixtureRunner = (Get-Content -Raw -LiteralPath $fixtureRunnerPath).Replace('[int]$TimeoutMilliseconds = 900000', '[int]$TimeoutMilliseconds = 500')
+  [IO.File]::WriteAllText($fixtureRunnerPath, $fixtureRunner, [Text.UTF8Encoding]::new($false))
+  $null = Set-TestScript -FixtureRoot $timeoutFixture -Content "Start-Sleep -Seconds 5`r`nWrite-Output 'LEARNING_EVIDENCE=[]'`r`n"
+  $timedOutCheck = Invoke-Cli $timeoutFixture @('check')
+  Assert-Equal $timedOutCheck.ExitCode 1 'timed-out check exits nonzero through CLI'
+  Assert-Match $timedOutCheck.Stderr 'execution limit' 'timed-out CLI check preserves diagnostic'
+  $timeoutJson = $timedOutCheck.Stdout | ConvertFrom-Json
+  Assert-True (-not $timeoutJson.passed) 'timed-out check returns failed result'
+  $timeoutProgress = Read-Progress $timeoutFixture
+  Assert-True (-not $timeoutProgress.milestones.M00.behaviorGate -and -not $timeoutProgress.milestones.M00.lastCheckResult) 'timeout invalidates prior behavior pass'
+  $timeoutCompletion = Invoke-Cli $timeoutFixture @('complete', '-Explanation', 'flow', '-FailureMode', 'failure', '-TransferEvidence', 'transfer')
+  Assert-True ($timeoutCompletion.ExitCode -ne 0) 'completion rejects stale pass after timeout'
+  Assert-Equal (Read-Progress $timeoutFixture).milestones.M01.status 'locked' 'timeout leaves successor locked'
 } finally {
   Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
 }
