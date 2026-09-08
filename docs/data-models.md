@@ -1,6 +1,6 @@
 # PostgreSQL Data Models
 
-The `salesflow` schema contains 26 tables. Composite account keys are intentional: business records are scoped by `account_ref`, and runtime actors cannot cross that boundary.
+The `salesflow` schema contains 29 tables. Composite account keys are intentional: business records are scoped by `account_ref`, and runtime actors cannot cross that boundary.
 
 ## Account and configuration
 
@@ -26,7 +26,7 @@ The `salesflow` schema contains 26 tables. Composite account keys are intentiona
 
 | Table | Purpose |
 | --- | --- |
-| `intents` | Unique customer/Handoff acknowledgement actions, authorization versions, minimized response-context provenance, lease/retry/provider state |
+| `intents` | Unique customer actions, authorization versions, minimized response-context provenance, lease/retry/provider state; historical acknowledgement kinds remain readable but cannot send while Human-Owned |
 | `intent_transitions` | Append-only intent state changes |
 | `provider_calls` | One durable call-start per logical intent, with stable provider/correlation identity and lease/attempt/release evidence |
 | `provider_call_events` | Append-only call lifecycle evidence: started, accepted, failed, ambiguous, reconciliation-required, or reconciled |
@@ -37,6 +37,9 @@ The `salesflow` schema contains 26 tables. Composite account keys are intentiona
 | `reconciliation_busy_events` | Append-only typed evidence that expired-call reconciliation skipped a busy authority or row |
 | `scheduler_cursors` | Durable due, reconciliation, and all-work high-water/wrap progress across bounded scheduler invocations |
 | `handoffs` | Human transfer work, evidence, queue/deadline, claims, retries |
+| `handoff_summaries` | One immutable evidence-grounded snapshot per Handoff, with credential-free Conversation destination |
+| `handoff_notification_attempts` | Append-only claim-bound attempt evidence; known starts prevent duplicate exposure, and legacy unknown start times require reconciliation |
+| `handoff_notification_events` | Append-only adapter outcome, authority-change, retry, final-failure, and exhaustion evidence; contraction exhaustion has a null adapter outcome |
 
 ## Operations, privacy, and release
 
@@ -59,6 +62,8 @@ The `salesflow` schema contains 26 tables. Composite account keys are intentiona
 - Frequency limits count durable provider-call starts, including in-flight and uncertain calls. The final gate serializes those reservations per Contact, so concurrent intents cannot consume the same remaining frequency slot.
 - An expired lease is retryable only when no provider-call row exists. Once a call-start exists, missing or ambiguous completion moves the intent to `reconciliation_required`; a matching callback may resolve it without another send.
 - Unique `(account_ref, source_id)` enforces one Handoff for an inbound source.
+- Summary identity is unique by both account/Handoff and account/source message. New summaries are inserted in the same transaction that changes ownership and creates Handoff work; retries and config rotations cannot rewrite them. Controlled privacy deletion and authorized retention expiry may replace only retained excerpts with `[deleted]` while preserving evidence identifiers and operational fields.
+- Conversation history is exposed only through a security-definer function that authenticates a current operator, derives account scope from its token, and refuses deleted or missing Conversations. The stored URL contains only the Conversation UUID, so raw account identifiers never require URL encoding. Returned messages use the database sequence, not provider time.
 - Unique source-intent and action keys make sent-completion replay create at most one Follow-Up. A partial unique index permits at most one pre-call active Follow-Up per Conversation, while a newer sent reply can supersede only an older active job and can never overwrite a cancelled job.
 - A Follow-Up request hash binds the source reply, action key, exact due time, expected and source Conversation versions, Release Set and business versions, consent timestamp/hash, template key/reference, correlation ID, generation, and campaign snapshot. The +12-hour due time is anchored to the durable database send transition rather than a provider-reported timestamp. The active synthetic template must match key/provider identity `followup-en`, category `marketing`, and language `en` at scheduling and due/final authorization. Due, claim, and provider-call start use current database time and re-evaluate current authority, including the current active WhatsApp/Meta identifier; provider-call `started_at` is written with `clock_timestamp()`, and rolling frequency is intentionally evaluated at due/start rather than frozen at scheduling.
 - Follow-Up parent transitions occur before child suppression, provider-call exposure, or terminal completion in the same transaction. Terminal parents are append-only; `sent` may advance only to `delivered` or `failed`. A missing parent suppresses an orphan child, pre-call retry exhaustion suppresses without false reconciliation, and a provider call cannot coexist with a parent left at `intent_created`.

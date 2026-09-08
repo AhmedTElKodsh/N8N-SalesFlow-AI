@@ -2,7 +2,7 @@
 
 ## Current truth
 
-The repository contains a complete **synthetic-local implementation** of the seven-workflow SalesFlow design. The September 5 publication verification ran the canonical Docker harness against the current follow-up scheduler and repository review fixes and exited 0 with `PASS FULL PASS`, plaintext credential cleanup, and container-volume cleanup. All eight provider-free learning suites also passed. This evidence covers the synthetic-local boundary; production promotion remains disabled.
+The repository contains a complete **synthetic-local implementation** of the seven-workflow SalesFlow design. SP3-T4 established automatic Human-Owned takeover for three synthetic triggers. SP3-T5 adds an atomic evidence-grounded Handoff summary, durable notification-failure recovery evidence, and an operator-authenticated local Conversation-history API destination. Conversation UI and CRM integration remain later work. This evidence covers the synthetic-local boundary; production promotion remains disabled.
 
 This is not a production approval. The adapters are deterministic local substitutes, and `release/release-manifest.json` keeps `livePromotionAllowed` set to `false`. Real Meta delivery, a selected production LLM, the CRM/Handoff contract, managed PostgreSQL controls, approved sales and knowledge content, legal/privacy approval, and a named production owner remain external gates.
 
@@ -17,7 +17,8 @@ Learning checkpoint failures now invalidate earlier behavior passes and retain t
 - The MVP is a policy-bound WhatsApp sales assistant for opted-in inbound leads.
 - The LLM drafts and classifies; deterministic Sales Policy and humans own commercial authority.
 - `ready_for_handoff` is not `closed_won`.
-- A customer can request a human at any stage. Human-Owned blocks automation except a fixed, approved, non-commercial transfer acknowledgement; opt-out still suppresses it.
+- A customer can request a human at any stage. The approved SP3-T4 contract makes Human-Owned block every automated customer message, including transfer acknowledgements, superseding the earlier acknowledgement exception. Internal Handoff dispatch remains separate; opt-out and deletion still take precedence.
+- Every new Handoff freezes its trigger reason, response deadline, referenced source excerpt, explicit unknowns, durably supported offer or `none`, active Sales Policy version, and credential-free Conversation URL. The current classifier has no durable offer-relevance evidence, so summaries conservatively store `none`. Notification retry/failure and post-recheck authority-change evidence is append-only and never releases Human-Owned lockout; privacy retention minimizes copied excerpts with source messages. The local history URL contains only the Conversation UUID, derives account scope from a separate operator token, and is not a production CRM or UI.
 - Follow-Ups recheck consent, opt-out, ownership, timing, frequency, and template eligibility immediately before send.
 - PostgreSQL owns business state; n8n orchestrates; external side effects originate from unique persisted intents.
 

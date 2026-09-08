@@ -10,6 +10,7 @@ These are **synthetic-local/test interfaces**, not production Meta or CRM contra
 | POST | `salesflow/status` | Reconcile provider status | `account_ref`, `event_id`, `provider_id`, `status`, `provider_time` |
 | POST | `salesflow/followups` | Authenticated test trigger for scheduler logic | No business body required |
 | POST | `salesflow/handoff` | Test entry to Handoff claim/dispatch | `work_id`; optional `account_ref` |
+| POST | `salesflow/handoff?view=conversation&account_ref={account}&conversation_id={uuid}` | Synthetic-local operator-authenticated persisted Conversation history | No body; operator token remains in `x-salesflow-token` |
 | POST | `salesflow/operations` | Account-bound operator command | Action-specific object |
 
 There are seven distinct local webhook paths; the eighth runtime entry is the UTC Schedule Trigger.
@@ -61,6 +62,12 @@ The live webhook maps accepted and idempotent callbacks to HTTP `200`, malformed
 ## Internal workflow calls
 
 The orchestrator calls workflow 03 or 06 with the authenticated token, `account_ref`, and `work_id`. The scheduler calls `salesflow.schedule_work` and routes each returned row by `workflow_id`. These internal calls do not create a second business-state path; all state changes still pass through PostgreSQL functions.
+
+## Handoff summary and history
+
+Every newly created Handoff atomically saves one immutable summary. It contains the typed reason, the existing response deadline as urgency, a bounded excerpt with the source inbound message ID and sequence, explicit structured-profile unknowns, a durably supported offer or `none`, the Sales Policy version active in the handoff transaction, and a credential-free Conversation URL. The current synthetic classifier does not persist offer-relevance evidence, so even qualifying text records `none`; an allowed-offer list alone is not relevance evidence. Legacy Handoffs are backfilled conservatively with `unknown` policy/details and `none` offer.
+
+The URL is an API destination, not a browser UI or CRM. It carries only the Conversation UUID; Workflow 06 requires the operator token separately in `x-salesflow-token`, and PostgreSQL derives account scope from that token. Account identifiers containing URL-reserved characters therefore do not affect resolution. Missing, malformed, deleted, unauthorized, and cross-account requests return typed failures without Conversation content. Returned history interleaves persisted inbound messages and sent outbound intents, including sent Follow-Ups resolved through their source reply. Source-linked messages are grouped after their source sequence; messages with missing source references remain present and sort last with sequence `unknown`. Outbound time uses only recorded provider time or a sent-transition timestamp; if neither exists, `receivedAt` is `unknown`. Each successful final recheck appends an exact claim-bound adapter-start marker before the adapter is exposed; repeat rechecks for that claim are denied. An expired claim without that marker may be reclaimed; an expired started attempt instead returns `reconciliation_required` without consuming another attempt, and only its exact original claim may append the late adapter outcome. Legacy claimed Handoffs receive an uncertainty record with an unknown start time during migration. They require reconciliation and cannot be blindly resent or assigned a fabricated adapter outcome. Each adapter finish appends its exact attempt/outcome even if real opt-out, deletion, account, lifecycle, or Handoff-config authority changed after recheck; the Handoff remains suppressed, including when authority is later restored before the exact original result arrives. Every terminal suppression path clears `claim`, `claim_until`, and `next_attempt`, and max-attempt contraction writes exhaustion evidence with no fabricated adapter outcome. Notification failure never releases Human-Owned suppression. Authorized privacy deletion or retention expiry minimizes copied summary excerpts alongside their source messages while retaining message identifiers and operational evidence.
 
 ## Error model
 
