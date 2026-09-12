@@ -93,3 +93,7 @@
 - source_spec: `_bmad-output/party-mode` Code Review Crew full-repository review, 2026-09-11
   summary: Declare or remove the undeclared ripgrep dependency in the canonical harness.
   evidence: `tests/run.ps1:71` shells out to `rg` for the function-signature scan, but the README lists only Docker Desktop and PowerShell as requirements; on a host without ripgrep on PATH the suite aborts with CommandNotFoundException after 273 passing assertions, before any Docker environment is created. Either document the dependency or use `Select-String`.
+
+- source_spec: `_bmad-output/party-mode` Code Review Crew full-repository review, 2026-09-11
+  summary: Make the SP3-T3 starvation fixture deterministic instead of racing a fixed `pg_sleep` window.
+  evidence: `tests/run.ps1:201-213` holds 200 advisory locks in a background job that sleeps 10 seconds while the main thread polls through `docker compose exec` round trips. On a loaded host the window can expire before the scheduler runs; one observed failure reported `busy=100` instead of `busy=200` while the 201st job still processed correctly, and the identical tree passed on re-run. The blocker should hold its locks until the measuring query has completed rather than for a fixed duration.
