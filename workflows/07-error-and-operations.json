@@ -21,7 +21,7 @@
     },
     {
       "id": "ops",
-      "name": "Account Bound Command and Alert Evidence",
+      "name": "Account Bound Stop Activity and Failure Operations",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
@@ -66,14 +66,14 @@
       "main": [
         [
           {
-            "node": "Account Bound Command and Alert Evidence",
+            "node": "Account Bound Stop Activity and Failure Operations",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Account Bound Command and Alert Evidence": {
+    "Account Bound Stop Activity and Failure Operations": {
       "main": [
         [
           {

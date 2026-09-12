@@ -5,6 +5,7 @@
 .github/agents/
 .kiro/
 progress/
+skills-lock.json
 
 .env
 .env.*

@@ -50,6 +50,9 @@ The live webhook maps accepted and idempotent callbacks to HTTP `200`, malformed
 | Action | Required fields | Result |
 | --- | --- | --- |
 | `evidence` | `action` | Counts audit evidence and returns retention/release references. |
+| `emergency_stop` | `action`, boolean `enabled` | Atomically enables or clears the account stop and returns its accepted state, previous state, actor-attributed database time, and whether it changed. `busy` means no change was accepted. |
+| `activity` | `action`, optional integer `limit` and `cursor` | Returns an account-isolated, newest-first activity page. Default 50, maximum 100; `nextCursor` advances the stable page. |
+| `failures` | `action`, optional integer `limit` and `cursor` | Returns an account-isolated failure/retry page with work identity, attempt, state, latest reason, nullable known occurrence time, observation time, next retry, and manual-action status. |
 | `delete` | `action`, `contact_id` | Creates target records, minimizes live customer data, and records completion. |
 | `contact_identifier_replace` | `action`, `contact_id`, `channel`, `provider`, `old_ref`, `new_ref` | Atomically retires the active old reference and links the unused new reference to the same Contact; ownership conflicts return HTTP `409`. |
 | `release` | `action`, `release_id`, `manifest`, `manifest_hash` | Activates an immutable release only when the reviewed manifest binding matches. |
@@ -59,9 +62,11 @@ The live webhook maps accepted and idempotent callbacks to HTTP `200`, malformed
 
 `config_activate` is also the rollback command: supply the older saved `version` and the currently active version as `expected_active_version`. Publication conflicts return typed `stale_active_version` or `busy` results without changing the active document. The operations workflow is the authorized public boundary; its database role does not receive direct access to the underlying publication functions or tables.
 
+Successful emergency-stop acceptance is the no-new-call boundary. The command serializes on the same account control lock used by provider-call start: a concurrent stop-first call waits or returns typed `busy`, then remains blocked after the stop commits; call-first preserves that one durable started call and blocks later starts. Clearing the stop changes future eligibility only and does not replay suppressed work. Activity and failure items contain identifiers and state evidence, never operator tokens or customer message bodies. `latestFailureAt` is null when legacy occurrence time is unknown; `observedAt` records when the projection became visible without pretending to be the historical event time.
+
 ## Internal workflow calls
 
-The orchestrator calls workflow 03 or 06 with the authenticated token, `account_ref`, and `work_id`. The scheduler calls `salesflow.schedule_work` and routes each returned row by `workflow_id`. These internal calls do not create a second business-state path; all state changes still pass through PostgreSQL functions.
+The orchestrator calls workflow 03 or 06 with the authenticated token, `account_ref`, and `work_id`. The scheduler calls `salesflow.schedule_work` and routes each returned row by `workflow_id`. These internal calls do not create a second business-state path; all state changes still pass through PostgreSQL functions. The authenticated token travels only in that internal item stream: webhook-terminal denial and no-work responses return the typed `result` alone and never echo the token, lease, or claim.
 
 ## Handoff summary and history
 

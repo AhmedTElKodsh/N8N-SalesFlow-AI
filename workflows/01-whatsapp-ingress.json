@@ -93,13 +93,26 @@
     {
       "id": "rejected",
       "name": "Typed Terminal",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
         660,
         80
       ],
-      "parameters": {}
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "result",
+              "name": "result",
+              "type": "object",
+              "value": "={{ $json.result }}"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
     },
     {
       "id": "meta-post",
@@ -212,34 +225,6 @@
       "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "const crypto=require('crypto');\nconst expected=String($json.expected_hmac||'').toLowerCase();const correlation=reason=>crypto.createHash('sha256').update('salesflow:test-whatsapp-rejection:v1:'+reason+':'+expected).digest('hex');const reject=(reason,status)=>({json:{action:'reject',runtime_token:$json.runtime_token,reason,correlation:correlation(reason),status_code:status}});const header=$json.headers?.['x-hub-signature-256'];if(typeof header!=='string'||!/^sha256=[0-9a-fA-F]{64}$/.test(header)||!/^[0-9a-f]{64}$/.test(expected))return reject('invalid_signature',403);const supplied=Buffer.from(header.slice(7),'hex');const wanted=Buffer.from(expected,'hex');if(supplied.length!==32||wanted.length!==32||!crypto.timingSafeEqual(supplied,wanted))return reject('invalid_signature',403);const rawValue=$json.raw_body_base64;if(typeof rawValue!=='string')return reject('malformed_payload',400);const raw=Buffer.from(rawValue,'base64');const declared=$json.headers?.['content-length'];if((declared!==undefined&&(!/^\\d+$/.test(String(declared))||Number(declared)>262144))||raw.length>262144)return reject('oversized_payload',400);const decoded=raw.toString('utf8');if(!Buffer.from(decoded,'utf8').equals(raw))return reject('malformed_payload',400);let body;try{body=JSON.parse(decoded);}catch{return reject('malformed_payload',400);}if(!body||typeof body!=='object'||Array.isArray(body)||!Array.isArray(body.entry)||body.entry.length===0||typeof body.object!=='string')return reject('malformed_payload',400);if(body.object!=='whatsapp_business_account')return reject('wrong_identity',403);const messages=[];let unsupported=false;for(const entry of body.entry){if(!entry||typeof entry!=='object'||typeof entry.id!=='string'||entry.id===''||!Array.isArray(entry.changes)||entry.changes.length===0)return reject('malformed_payload',400);if(entry.id!==$json.configured_waba_id)return reject('wrong_identity',403);for(const change of entry.changes){if(!change||typeof change!=='object'||typeof change.field!=='string'||change.field==='')return reject('malformed_payload',400);if(change.field!=='messages'){unsupported=true;continue;}const value=change.value;if(!value||typeof value!=='object'||typeof value.metadata?.phone_number_id!=='string'||value.metadata.phone_number_id==='')return reject('malformed_payload',400);if(value.metadata.phone_number_id!==$json.configured_phone_number_id)return reject('wrong_identity',403);if(!Array.isArray(value.messages)||value.messages.length===0){unsupported=true;continue;}for(const message of value.messages){if(!message||typeof message!=='object'||typeof message.id!=='string'||message.id===''||Buffer.byteLength(message.id,'utf8')>1024||typeof message.from!=='string'||message.from===''||typeof message.timestamp!=='string'||!/^\\d+$/.test(message.timestamp)||typeof message.type!=='string'||message.type==='')return reject('malformed_payload',400);const received=new Date(Number(message.timestamp)*1000);if(!Number.isFinite(received.getTime())||received.getTime()>Date.now()+300000)return reject('malformed_payload',400);if(message.type!=='text'){unsupported=true;continue;}if(typeof message.text?.body!=='string'||message.text.body===''||Buffer.byteLength(message.text.body,'utf8')>8192)return reject('malformed_payload',400);messages.push({account_ref:$json.configured_account_ref,provider_id:message.id,contact_ref:message.from,body:message.text.body,received_at:received.toISOString()});}}}\nif(messages.length===0)return reject('unsupported_event',200);return{json:{action:'ingest',runtime_token:$json.runtime_token,payload:{account_ref:$json.configured_account_ref,correlation:correlation('accepted'),messages}}};"
-      }
-    },
-    {
-      "id": "meta-direct-response",
-      "name": "Direct Test Response",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        900,
-        400
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "leftValue": "={{$json.action === 'respond'}}",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ]
-        }
       }
     },
     {
@@ -423,24 +408,6 @@
     },
     "Validate Test WhatsApp Request": {
       "main": [
-        [
-          {
-            "node": "Direct Test Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Direct Test Response": {
-      "main": [
-        [
-          {
-            "node": "Respond to Test Intake",
-            "type": "main",
-            "index": 0
-          }
-        ],
         [
           {
             "node": "Persist Test Messages",

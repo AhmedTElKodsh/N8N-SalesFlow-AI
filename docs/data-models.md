@@ -1,6 +1,6 @@
 # PostgreSQL Data Models
 
-The `salesflow` schema contains 29 tables. Composite account keys are intentional: business records are scoped by `account_ref`, and runtime actors cannot cross that boundary.
+The `salesflow` schema contains 32 tables. Composite account keys are intentional: business records are scoped by `account_ref`, and runtime actors cannot cross that boundary.
 
 ## Account and configuration
 
@@ -36,7 +36,7 @@ The `salesflow` schema contains 29 tables. Composite account keys are intentiona
 | `followup_busy_events` | Parent-independent evidence that a scheduler candidate was skipped because its Conversation/authority or row was busy |
 | `reconciliation_busy_events` | Append-only typed evidence that expired-call reconciliation skipped a busy authority or row |
 | `scheduler_cursors` | Durable due, reconciliation, and all-work high-water/wrap progress across bounded scheduler invocations |
-| `handoffs` | Human transfer work, evidence, queue/deadline, claims, retries |
+| `handoffs` | Human transfer work, evidence, queue/deadline, claims, retries, and the durable reason for terminal authority suppression |
 | `handoff_summaries` | One immutable evidence-grounded snapshot per Handoff, with credential-free Conversation destination |
 | `handoff_notification_attempts` | Append-only claim-bound attempt evidence; known starts prevent duplicate exposure, and legacy unknown start times require reconciliation |
 | `handoff_notification_events` | Append-only adapter outcome, authority-change, retry, final-failure, and exhaustion evidence; contraction exhaustion has a null adapter outcome |
@@ -50,6 +50,9 @@ The `salesflow` schema contains 29 tables. Composite account keys are intentiona
 | `releases` | Immutable manifest-backed release history; rows do not carry active authority |
 | `release_pointers` | The single authoritative active-release reference per account |
 | `audit_events` | Append-only operator/runtime decision evidence |
+| `operational_failures` | Append-only, audit-retention-governed failure/retry projection with stable account-keyset page IDs, nullable known occurrence time, separate observation time, and manual-action status |
+| `activity_backfill_markers` | Content-free migration markers that prevent retained-away legacy activity from being recreated on migration replay |
+| `failure_backfill_markers` | Content-free migration markers that prevent retained-away legacy failure projections from being recreated on migration replay |
 
 ## Critical constraints
 
@@ -80,4 +83,4 @@ The `salesflow` schema contains 29 tables. Composite account keys are intentiona
 
 ## Migration strategy
 
-`database/001-initial.sql` creates roles, schema objects, triggers, functions, revocations, and runtime function grants in one transaction. Follow-Up transition storage and duplicate/unverifiable cleanup precede all identity and active uniqueness indexes. Invalid or duplicate active jobs become `legacy_unverifiable` with immutable migration transitions; a legitimate terminal outcome is preserved while only its losing duplicate source/action identities are cleared so index creation cannot rewrite historical delivery truth. The canonical harness substitutes disposable role passwords, proves that partial-upgrade fixture twice, proves rollback on injected failure, and applies the full migration twice before n8n starts. A narrowly granted account-management command authenticates an unexpired operator token even while its own account is disabled, allowing only the explicit enabled-state change; other disabled-account commands remain unavailable.
+`database/001-initial.sql` creates roles, schema objects, triggers, functions, revocations, and runtime function grants in one transaction. Follow-Up transition storage and duplicate/unverifiable cleanup precede all identity and active uniqueness indexes. Invalid or duplicate active jobs become `legacy_unverifiable` with immutable migration transitions; a legitimate terminal outcome is preserved while only its losing duplicate source/action identities are cleared so index creation cannot rewrite historical delivery truth. Existing send and Handoff-notification evidence is idempotently projected into activity during upgrade; a Handoff lacking historical transition time receives a clearly labeled current-state observation rather than an invented action time. The canonical harness substitutes disposable role passwords, proves that partial-upgrade fixture twice, proves rollback on injected failure, and applies the full migration twice before n8n starts. A narrowly granted account-management command authenticates an unexpired operator token even while its own account is disabled, allowing only the explicit enabled-state change; other disabled-account commands remain unavailable.
