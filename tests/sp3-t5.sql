@@ -271,7 +271,7 @@ DO $$DECLARE f jsonb;w uuid;claim_id uuid;r jsonb;BEGIN
  r:=finish_handoff('sp3t5-runtime','sp3t5',w,claim_id,'retryable');ASSERT (r->>'ok')::bool AND r->>'notificationResult'='authority_changed'AND r->>'terminal'='suppressed','restored authority preserves exact result without retry';
  r:=finish_handoff('sp3t5-runtime','sp3t5',w,claim_id,'retryable');ASSERT (r->>'replayed')::bool,'restored authority result replay';
  r:=finish_handoff('sp3t5-runtime','sp3t5',w,claim_id,'success');ASSERT r->>'reason'='outcome_conflict','restored authority conflicting result denied';
- ASSERT (SELECT count(*)=1 FROM handoff_notification_events WHERE(account_ref,handoff_id)=('sp3t5',w))AND EXISTS(SELECT 1 FROM handoffs WHERE(account_ref,id)=('sp3t5',w)AND state='suppressed'AND claim IS NULL AND next_attempt IS NULL),'restored authority remains suppressed exactly once';
+ ASSERT (SELECT count(*)=1 AND bool_and(failure_reason='account_disabled')FROM handoff_notification_events WHERE(account_ref,handoff_id)=('sp3t5',w))AND EXISTS(SELECT 1 FROM handoffs WHERE(account_ref,id)=('sp3t5',w)AND state='suppressed'AND suppression_reason='account_disabled'AND claim IS NULL AND next_attempt IS NULL),'restored authority retains its suppression reason exactly once';
 END$$;
 DO $$DECLARE r jsonb;c uuid;ct uuid;src uuid;reply_id uuid;job_id uuid;h jsonb;BEGIN
  r:=ingest('sp3t5-runtime','{"account_ref":"sp3t5","provider_id":"full-followup-start","contact_ref":"full-followup","body":"hello"}');c:=(r->>'conversation_id')::uuid;ct:=(r->>'contact_id')::uuid;src:=(r->>'inbound_id')::uuid;

@@ -2,7 +2,7 @@
 
 ## Current truth
 
-The repository contains a complete **synthetic-local implementation** of the seven-workflow SalesFlow design. SP3-T4 established automatic Human-Owned takeover for three synthetic triggers. SP3-T5 adds an atomic evidence-grounded Handoff summary, durable notification-failure recovery evidence, and an operator-authenticated local Conversation-history API destination. Conversation UI and CRM integration remain later work. This evidence covers the synthetic-local boundary; production promotion remains disabled.
+The repository contains a complete **synthetic-local implementation** of the seven-workflow SalesFlow design. SP3-T4 established automatic Human-Owned takeover for three synthetic triggers. SP3-T5 adds an atomic evidence-grounded Handoff summary, durable notification-failure recovery evidence, and an operator-authenticated local Conversation-history API destination. SP3-T6 exposes an account-wide emergency stop plus bounded, account-isolated activity and failure/retry views through the Operations workflow. Conversation UI and CRM integration remain later work. This evidence covers the synthetic-local boundary; production promotion remains disabled.
 
 This is not a production approval. The adapters are deterministic local substitutes, and `release/release-manifest.json` keeps `livePromotionAllowed` set to `false`. Real Meta delivery, a selected production LLM, the CRM/Handoff contract, managed PostgreSQL controls, approved sales and knowledge content, legal/privacy approval, and a named production owner remain external gates.
 
