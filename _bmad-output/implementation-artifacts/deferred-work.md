@@ -97,3 +97,7 @@
 - source_spec: `_bmad-output/party-mode` Code Review Crew full-repository review, 2026-09-11
   summary: Make the SP3-T3 starvation fixture deterministic instead of racing a fixed `pg_sleep` window.
   evidence: `tests/run.ps1:201-213` holds 200 advisory locks in a background job that sleeps 10 seconds while the main thread polls through `docker compose exec` round trips. On a loaded host the window can expire before the scheduler runs; one observed failure reported `busy=100` instead of `busy=200` while the 201st job still processed correctly, and the identical tree passed on re-run. The blocker should hold its locks until the measuring query has completed rather than for a fixed duration.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-sp3-t7-one-click-test-suite.md`
+  summary: Remove the stale plaintext `test-results/credentials.json` left in the main checkout by an older harness version.
+  evidence: The current harness writes credentials only under `.generated/` (`tests/run.ps1` imports `/generated/credentials.json`) and deletes that directory in `finally`, but the ignored `test-results/` folder in this checkout still holds a `credentials.json` from an earlier layout, so plaintext local credentials sit beside the new test reports and are not covered by SP3-T7 cleanup.

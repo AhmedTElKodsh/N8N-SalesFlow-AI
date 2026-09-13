@@ -123,8 +123,9 @@ Operational configuration stays separate from the five business contracts: `acco
 
 ## Verification and release components
 
-- `tests/run.ps1` — canonical lifecycle and assertion driver.
-- `tests/runtime.sql` — database-level behavior evidence.
-- `tests/pilot-scenarios.json` — exact S01-S26 inventory.
+- `tests/run.ps1` — canonical one-command lifecycle and assertion driver.
+- `tests/TestReport.ps1` — fail-fast, secret-redacted scenario report written to `test-results/test-report-<UTC timestamp>.md`; `tests/Test-TestReport.ps1` proves it without Docker.
+- `tests/runtime.sql` — database-level behavior evidence; each S-scenario pass raises a `SCENARIO_PASS` notice for the report.
+- `tests/pilot-scenarios.json` — exact S01-S26 inventory with plain-language names.
 - `scripts/canonicalize-workflows.mjs` — stable stdlib-only workflow hashes.
 - `release/release-manifest.json` — pinned images, inputs, workflow hashes, node types, and promotion flag.

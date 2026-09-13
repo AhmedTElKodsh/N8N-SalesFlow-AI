@@ -27,7 +27,7 @@ Learning checkpoint failures now invalidate earlier behavior passes and retain t
 - Seven n8n workflows cover ingress, orchestration, dispatch, provider status, UTC scheduling, Handoff dispatch, and operations. Workflow 01 alone uses two allowlisted Code nodes for raw test-body capture and HMAC/envelope validation; no workflow uses command, community, or arbitrary HTTP nodes.
 - PostgreSQL provides account-scoped state, immutable configuration versions, idempotency, ordering, authorization, leases/claims, retries, audit evidence, deletion minimization, and release activation.
 - Ten JSON contracts define the synthetic account, consent/templates, Handoff, model, Product Knowledge, qualification, Release Set, retention, retry, and Sales Policy inputs.
-- `tests/run.ps1` provisions disposable credentials, applies the migration twice, publishes configuration and workflows, executes S01-S26 and race checks, verifies canonical workflow identity and secrets hygiene, and cleans plaintext/volumes in `finally`.
+- `tests/run.ps1` provisions disposable credentials, applies the migration twice, publishes configuration and workflows, executes S01-S26 and race checks, verifies canonical workflow identity and secrets hygiene, and cleans plaintext/volumes in `finally`. SP3-T7 makes it the one-command go/no-go suite: it checks prerequisites first, stays fail-fast, and saves a secret-redacted report listing every check as pass, fail, or not run, with failure reasons, an overall verdict, and a synthetic-local-only scope statement.
 
 ## Delivery posture
 

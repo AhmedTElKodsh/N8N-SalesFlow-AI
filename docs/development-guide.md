@@ -3,6 +3,7 @@
 ## Prerequisites
 
 - Docker Desktop with Compose
+- Git (the harness verifies line-ending attributes)
 - Windows PowerShell 5.1 or PowerShell 7
 - Docker can allocate a free loopback port; resolve n8n with `docker compose port n8n 5678`
 
@@ -16,7 +17,7 @@ From the repository root:
 powershell -ExecutionPolicy Bypass -File .\tests\run.ps1
 ```
 
-The harness creates disposable credentials, starts PostgreSQL, applies the migration twice, publishes account configuration, imports/publishes all workflows, executes database scenarios and concurrency races, calls every live endpoint, verifies canonical exports and secret hygiene, and removes generated plaintext and volumes in `finally`.
+The harness creates disposable credentials, starts PostgreSQL, applies the migration twice, publishes account configuration, imports/publishes all workflows, executes database scenarios and concurrency races, calls every live endpoint, verifies canonical exports and secret hygiene, and removes generated plaintext and volumes in `finally`. It then prints and saves the fail-fast test report described in the root [README](../README.md#run-the-complete-test). To check the report logic alone, without Docker, run `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-TestReport.ps1`.
 
 ## Change workflow
 
@@ -49,6 +50,9 @@ git status --short
 # Validate JSON source files
 Get-ChildItem config,workflows,release,tests -Filter *.json -Recurse |
   ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }
+
+# Check the test report logic without Docker
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-TestReport.ps1
 
 # Run the complete executable contract
 powershell -ExecutionPolicy Bypass -File .\tests\run.ps1
