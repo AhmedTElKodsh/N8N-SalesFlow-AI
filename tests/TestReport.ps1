@@ -146,12 +146,7 @@ function Complete-TestReport([string]$OutputDirectory,[string]$CleanupFailure,[b
   $report.FinishedAt=[DateTime]::UtcNow
   $text=Format-TestReport
   Assert-TestReportSecretFree $text
-  $path=$null
-  if(-not$SkipSave){
-    New-Item $OutputDirectory -ItemType Directory -Force|Out-Null
-    $path=Join-Path $OutputDirectory ('test-report-'+$report.FinishedAt.ToString('yyyyMMdd-HHmmss-fff')+'Z.md')
-    [IO.File]::WriteAllText($path,$text,[Text.UTF8Encoding]::new($false))
-  }
+  # Print the on-screen report before saving, so a filesystem failure cannot hide the results.
   Write-Host ''
   Write-Host 'TEST REPORT'
   foreach($item in $report.Items){
@@ -161,6 +156,10 @@ function Complete-TestReport([string]$OutputDirectory,[string]$CleanupFailure,[b
   }
   Write-Host "VERDICT $(Get-TestReportVerdict)"
   Write-Host "SCOPE $script:TestReportScope"
-  if($path){Write-Host "REPORT $path"}else{Write-Host 'REPORT not saved: this invocation did not run the suite.'}
+  if($SkipSave){Write-Host 'REPORT not saved: this invocation did not run the suite.';return $null}
+  New-Item $OutputDirectory -ItemType Directory -Force|Out-Null
+  $path=Join-Path $OutputDirectory ('test-report-'+$report.FinishedAt.ToString('yyyyMMdd-HHmmss-fff')+'Z.md')
+  [IO.File]::WriteAllText($path,$text,[Text.UTF8Encoding]::new($false))
+  Write-Host "REPORT $path"
   $path
 }

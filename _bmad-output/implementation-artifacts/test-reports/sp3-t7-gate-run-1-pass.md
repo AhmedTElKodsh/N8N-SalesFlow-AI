@@ -1,8 +1,8 @@
 # SalesFlow one-click test report
 
 - **Verdict:** PASS
-- **Started (UTC):** 2026-09-13 16:27:21
-- **Finished (UTC):** 2026-09-13 16:34:54
+- **Started (UTC):** 2026-09-13 19:20:05
+- **Finished (UTC):** 2026-09-13 19:28:07
 - **Results:** 36 passed, 0 failed, 0 not run
 - **Scope:** Simulated local setup only: a synthetic WhatsApp adapter and a fixture AI model in disposable containers. A PASS is not evidence that live WhatsApp or AI providers work.
 - **Order:** Scenarios are listed by ID but run in database order, so a not-run scenario can appear between passes.

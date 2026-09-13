@@ -18,6 +18,13 @@ try{
   Check (@($catalog.scenarios|Where-Object{[string]::IsNullOrWhiteSpace([string]$catalog.names.$_)}).Count-eq0) 'every scenario has a plain-language name'
   $threw=$false;try{Initialize-TestReport -ScenarioIds @('S99') -ScenarioNames ([pscustomobject]@{})}catch{$threw=$_.Exception.Message-match'S99'};Check $threw 'unnamed scenario is rejected'
   $threw=$false;try{Initialize-TestReport -ScenarioIds @('S01','S01') -ScenarioNames $catalog.names}catch{$threw=$_.Exception.Message-match'Duplicate'};Check $threw 'duplicate scenario IDs are rejected'
+  $evidenceLines=@(($sqlText-split"`n")|Where-Object{$_-match"INSERT INTO evidence VALUES\('S\d\d'\)"})
+  Check ($evidenceLines.Count-eq26-and@($evidenceLines|Where-Object{$_-notmatch"INSERT INTO evidence VALUES\('S\d\d'\);\s*$"}).Count-eq0) 'scenario evidence is the last statement on its runtime.sql line'
+
+  Pass-All
+  New-Item $out -ItemType Directory -Force|Out-Null;$blocker=Join-Path $out 'not-a-directory';Set-Content -LiteralPath $blocker -Value 'x'
+  $captured=@(& {try{$null=Complete-TestReport -OutputDirectory (Join-Path $blocker 'reports') -CleanupFailure $null -CleanupRan $true -StackRetained $false;'SAVED'}catch{'SAVE-THREW'}} 6>&1|ForEach-Object{[string]$_})
+  Check ($captured-contains'SAVE-THREW'-and@($captured|Where-Object{$_-eq'VERDICT PASS'}).Count-eq1-and@($captured|Where-Object{$_-like'PASS     S26 *'}).Count-eq1) 'on-screen report survives a report save failure'
 
   Pass-All
   $text=Get-Content (Save $null $false) -Raw
