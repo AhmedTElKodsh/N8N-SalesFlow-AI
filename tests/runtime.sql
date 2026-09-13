@@ -4,6 +4,9 @@
 SET search_path=salesflow,public;
 SELECT set_config('sf.rt',:'runtime_token',false),set_config('sf.rt2',:'runtime_token_2',false),set_config('sf.op',:'operator_token',false),set_config('sf.op2',:'operator_token_2',false),set_config('sf.sch',:'scheduler_token',false),set_config('sf.manifest',convert_from(decode(:'activation_manifest_b64','base64'),'UTF8'),false),set_config('sf.manifest_hash',:'activation_manifest_hash',false);
 CREATE TEMP TABLE evidence(id text PRIMARY KEY);
+CREATE FUNCTION pg_temp.report_scenario_pass()RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RAISE NOTICE 'SCENARIO_PASS %',NEW.id;RETURN NEW;END$$;
+CREATE TRIGGER report_scenario_pass AFTER INSERT ON evidence FOR EACH ROW EXECUTE FUNCTION pg_temp.report_scenario_pass();
+DO $$BEGIN RAISE NOTICE 'SCENARIO_SETUP_READY';END$$;
 DO $$DECLARE rt text:=current_setting('sf.rt');rt2 text:=current_setting('sf.rt2');op text:=current_setting('sf.op');op2 text:=current_setting('sf.op2');sch text:=current_setting('sf.sch');r jsonb;r2 jsonb;c uuid;conv uuid;order_conv uuid;equal_conv uuid;i uuid;lease uuid;h uuid;claim uuid;pid text;pt timestamptz:=now();before_seq bigint;BEGIN
 r:=ingest('bad','{}');ASSERT r->>'reason'='unauthorized';r:=ingest(rt,'{"account_ref":"account-b","provider_id":"x","contact_ref":"x","body":"x"}');ASSERT r->>'reason'='wrong_account';INSERT INTO evidence VALUES('S02');
 r:=ingest(rt,jsonb_build_object('account_ref','test-account','provider_id','large','contact_ref','x','body',repeat('x',8193)));ASSERT r->>'reason'='invalid';r:=ingest(rt,'{"account_ref":"test-account","provider_id":"future","contact_ref":"x","body":"x","received_at":"2999-01-01"}');ASSERT r->>'reason'='invalid';INSERT INTO evidence VALUES('S03');

@@ -1,5 +1,18 @@
 # SalesFlow local test evidence
 
+## SP3-T7 one-click test suite — 2026-09-13
+
+The one command `powershell -ExecutionPolicy Bypass -File .\tests\run.ps1` now checks prerequisites first, runs the SP3-T4/T5/T6 suites, the release contracts, S01-S26, the regression and race checks, and the live endpoints fail-fast, then cleans up and saves `test-results/test-report-<UTC timestamp>.md`. The report lists every check as pass, fail, or not run, with failure reasons, an overall verdict, and a statement that it covers the simulated local setup only. `livePromotionAllowed` remains `false`.
+
+Reliability gate: two back-to-back runs of that command, in a disposable worktree whose files hashed byte-identical to this checkout (`tests/run.ps1` SHA-256 `8285f245…`, activation digest `e3d5e5c6…`), with no edits or single-test reruns between them. Run 1 exited 0 in 454 seconds and run 2 in 422 seconds. Both printed exact `PASS FULL PASS` and verdict PASS for 36 of 36 checks, and each left 0 project volumes, 0 containers, and no `.generated` directory. The saved reports are `test-reports/sp3-t7-gate-run-1-pass.md` and `test-reports/sp3-t7-gate-run-2-pass.md`. Two consecutive passes are a smoke check for flakiness, not statistical proof.
+
+Failure path: the same command in this checkout, which retains a local stack, exited 1 after 8 seconds. Prerequisites failed with the recovery message, every later test check was not run, cleanup was reported, and the retained stack was untouched. The Docker-free `tests/Test-TestReport.ps1` passes all 34 checks on PowerShell 7.6.5 and Windows PowerShell 5.1. The CI-equivalent parse, JSON, `git diff --check`, and learning checks all pass.
+
+Verification exposed and fixed three pre-existing harness faults:
+- `JsonbText` sorted keys with culture-sensitive comparison, so adding `tests/TestReport.ps1` produced a different activation digest on Windows PowerShell 5.1 than on PowerShell 7 and failed R01. Keys now sort by UTF-8 bytes, matching PostgreSQL `jsonb`.
+- An earlier candidate pair failed C01 with the known SP3-T3 starvation symptom `busy=100` (kept as `test-reports/sp3-t7-prefix-run-2-fail-starvation.md`). On a live disposable stack, a mid-cycle `followup-due` cursor reproduced exactly that result 2 of 2 times, and a reset cursor produced `busy=200` 5 of 5 times, with the scheduler finishing in about 0.5 seconds. The fixture isolation reset now also resets that cursor, following the harness's own earlier cursor reset. No assertion or product code changed. This resolves the deferred starvation-fixture entry.
+- The undeclared `rg` call was replaced with an equivalent .NET regex, which resolves that deferred entry.
+
 ## Party-mode Code Review Crew fixes — 2026-09-12
 
 Follow-up from automated PR review: `set_conversation_state` set the transaction-local `salesflow.activity_actor` suppression flag before its own Conversation update but never cleared it, so any later Conversation owner, lifecycle, or campaign change in the same transaction skipped the `ownership_changed` and `conversation_authority_changed` activity triggers. Each production call is its own transaction, so the leak is unreachable through Workflow 07, but it is reachable inside multi-statement transactions such as this repository's own `DO` fixtures. The prior value is now saved and restored around the update. A canonical re-run exited 0 with exact `PASS FULL PASS` across 1030 assertions in 490 seconds. An earlier attempt on the identical tree failed only the SP3-T3 starvation assertion with `busy=100` instead of `busy=200` while still processing the 201st job; that fixture races a fixed ten-second lock window and is recorded in `deferred-work.md`.
