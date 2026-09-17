@@ -59,6 +59,8 @@ function Get-TestReportFailureDetails([string[]]$Lines,[int]$ExitCode){
   # Windows PowerShell can prefix redirected native stderr with "psql : "; strip it so duplicates collapse.
   $relevant=@($Lines|ForEach-Object{(([string]$_).Trim())-replace'^[^:\s]+ : (?=psql:)',''}|Where-Object{$_-match'(ERROR|DETAIL|HINT|CONTEXT):'-and$_-notmatch'^(\+ |At )'}|Select-Object -Unique)
   $details=if($relevant.Count){$relevant-join' '}else{"tests/runtime.sql stopped with exit code $ExitCode."}
+  # Protect complete secret values before the detail cap can cut them into unrecognizable prefixes.
+  $details=Protect-TestReportText $details
   if($details.Length-gt$script:TestReportDetailLimit){$details=$details.Substring(0,$script:TestReportDetailLimit)+'...'}
   $details
 }

@@ -39,6 +39,31 @@ try{
   Check (@($script:TestReport.Items|Where-Object{$_.Id-notin'P01','X01'-and$_.Result-ne'not run'}).Count-eq0) 'everything after a prerequisite failure is not run'
   Check ((Result 'X01')-eq'pass'-and(Details 'X01')-match'No shared'-and(Get-TestReportVerdict)-eq'FAIL') 'cleanup is reported and the verdict fails'
 
+  # Truncating before protection exposes a secret prefix that exact-match redaction cannot recognize.
+  $boundarySecret='Synthetic-report-boundary-token-OnlyForTests-2026'
+  $secretForms=[ordered]@{
+    raw=$boundarySecret
+    base64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($boundarySecret))
+    hex32='a1b2c3d4e5f60718293a4b5c6d7e8f90'
+    hex64='b1c2d3e4f5061728394a5b6c7d8e9f00112233445566778899aabbccddeeff00'
+  }
+  foreach($form in $secretForms.GetEnumerator()){
+    foreach($position in 'full','boundary'){
+      Start-Report;Register-TestSecret $boundarySecret
+      $header='psql:<stdin>:80: ERROR: '
+      $prefix=if($position-eq'boundary'){$header+('x'*(580-$header.Length-1))+' '}else{$header}
+      $failure=$prefix+$form.Value+' '+('y'*700)
+      $failureOutput=@(Notices @())+@($failure,"psql : $failure")
+      Set-TestScenarioProgress -ExecutionOrder $order -Output $failureOutput -Failed $true -ExitCode 3
+      Stop-TestReport 'runtime SQL exit'
+      $printed=@(& {Save $null $false} 6>&1|ForEach-Object{[string]$_})
+      $saved=Get-Content -LiteralPath $printed[-1] -Raw
+      $exposedPrefix=$form.Value.Substring(0,20)
+      Check (-not($printed-join"`n").Contains($exposedPrefix)-and-not$saved.Contains($exposedPrefix)-and-not(Details $order[0]).Contains($exposedPrefix)) "$($form.Key) $position secret is absent from details, printed output, and saved report"
+      Check (($printed-join"`n").Contains('[redacted]')-and$saved.Contains('[redacted]')) "$($form.Key) $position secret is visibly redacted"
+      Check ((Details $order[0]).Length-le($script:TestReportDetailLimit+3)-and(Details $order[0]).EndsWith('...')) "$($form.Key) $position redacted details remain bounded"
+    }
+  }
   $secret='Zq9-'+[guid]::NewGuid().ToString()
   $b64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($secret))
   Start-Report;Register-TestSecret $secret

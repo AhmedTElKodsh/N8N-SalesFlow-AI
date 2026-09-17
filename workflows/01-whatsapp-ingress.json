@@ -86,7 +86,7 @@
           "mode": "id"
         },
         "options": {
-          "waitForSubWorkflow": true
+          "waitForSubWorkflow": false
         }
       }
     },
@@ -451,6 +451,17 @@
         [
           {
             "node": "Respond to Test Intake",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Typed Terminal",
             "type": "main",
             "index": 0
           }
