@@ -38,6 +38,16 @@ The harness prints the checkout-specific loopback URL after Docker assigns n8n a
 
 The retained `.env` contains local database and encryption secrets in plaintext. It is Git-ignored, but use this mode only on a trusted development account and never copy that file to chat, source control, or a shared machine.
 
+The retained scheduler and test-intake credentials expire after 24 hours. With the checkout's PostgreSQL service running, renew those two saved credentials without resetting data:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Renew-LocalTokens.ps1
+```
+
+Renewal verifies the checkout-specific Compose project and a local Docker transport, then extends only the original, non-revoked scheduler and test-intake token records for another 24 hours. It prints no credentials. It does not recover the disposable operator/runtime test tokens or renew revoked credentials. This command is restricted to the harness-created synthetic local account and database.
+
+The September corrective checks can also be run separately with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-ReviewFixes.ps1`. This creates and removes a dedicated PostgreSQL container, applies the migration twice, and checks recovery, account scope, privacy replay, provenance, relationship consistency, and local token renewal. The canonical suite additionally exercises failed/retryable/ambiguous synthetic adapter paths and briefly recreates n8n twice to enable and remove owner-controlled test fixtures.
+
 ## Manual lifecycle
 
 The automated harness is the canonical path because it generates disposable secrets, provisions the least-privilege roles, and imports/publishes the workflows. For a manual clean start, fill every blank secret in an ignored `.env`, start PostgreSQL alone, apply the owner migration, and only then start n8n:

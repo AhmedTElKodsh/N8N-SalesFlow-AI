@@ -23,6 +23,10 @@ powershell -ExecutionPolicy Bypass -File .\tests\run.ps1
 
 For a manual lifecycle, copy `.env.example` to ignored `.env`, fill every blank secret, start PostgreSQL, apply the migration with the owner role, then start n8n. See the root [README](../README.md) for exact commands.
 
+Retained scheduler and test-intake tokens expire after 24 hours. Run `scripts/Renew-LocalTokens.ps1` after starting the retained PostgreSQL service to extend only those original non-revoked identities. The command rejects remote Docker transports, unexpected account/database settings, and mismatched Compose projects. Other disposable harness tokens are not recovered. Renewal does not reset volumes or display credentials.
+
+`SALESFLOW_SYNTHETIC_TEST_MODE` and `SALESFLOW_SYNTHETIC_OUTCOMES` default to empty. The test harness temporarily enables a UUID-to-outcome map to exercise adapter failures through live n8n workflows. Public request bodies cannot select the outcome. The harness restores the original environment and recreates n8n afterward, including on failure; retained stacks therefore use the ordinary success fixture again. This remains a deterministic adapter, not a real provider test.
+
 ## Test-only WhatsApp-shaped intake
 
 The sole practice intake is `POST /webhook/salesflow/test/whatsapp-intake`. It accepts WhatsApp-shaped fixtures only on the localhost-bound n8n service; it has no real WhatsApp account, Meta app, verification route, callback registration, or public exposure. Set the blank `TEST_WHATSAPP_ACCOUNT_REF`, `TEST_WHATSAPP_WABA_ID`, `TEST_WHATSAPP_PHONE_NUMBER_ID`, and `TEST_WHATSAPP_RUNTIME_TOKEN` values in ignored environment input. The test harness generates these values and the `SalesFlow Test WhatsApp HMAC` credential for each run. The exported workflow contains credential references and environment expressions, never secret values.

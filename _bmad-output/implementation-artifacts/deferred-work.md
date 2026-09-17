@@ -1,3 +1,5 @@
+September 16 status: the [corrective-work disposition](review-fixes-2026-09-16.md) records source changes for Follow-Up provenance, history HTTP statuses, asynchronous dispatch, adapter failure fixtures, token-free fallback, relationship checks, and the starvation handshake. Docker-backed acceptance remains pending. Entries below preserve historical evidence and do not imply that every item is unchanged. SP3-T7 already removed the ripgrep dependency; the previously reported `test-results/credentials.json` is absent in this checkout.
+
 - source_spec: `_bmad-output/implementation-artifacts/spec-local-self-hosted-n8n.md`
   summary: Make the Docker Compose project identity checkout-specific instead of relying on the existing folder-derived label.
   evidence: The inherited `n8n-salesflow-ai` label can collide with another checkout sharing the same directory basename; one local checkout is the current supported ceiling.

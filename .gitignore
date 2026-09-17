@@ -2,8 +2,15 @@
 .agent/
 .agents/
 .claude/
+.continue/
 .github/agents/
+.grok/
 .kiro/
+.minimax/
+.pi/
+.roo/
+.rovodev/
+_bmad/render/
 progress/
 skills-lock.json
 
